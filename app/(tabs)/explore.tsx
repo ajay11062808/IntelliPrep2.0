@@ -76,6 +76,10 @@ export default function TabTwoScreen() {
           <ThemedText type="link">Learn more</ThemedText>
         </ExternalLink>
       </Collapsible>
+       <ThemedText className='bg-red-600'>Test for tailwind</ThemedText>
+        <ThemedText className='text-xl font-bold bg-blue-500'>
+          This is a test for tailwindcss integration.
+        </ThemedText>
       <Collapsible title="Animations">
         <ThemedText>
           This template includes an example of an animated component. The{' '}

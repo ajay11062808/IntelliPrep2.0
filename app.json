@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "IntelliPrep2.0",
-    "slug": "IntelliPrep2.0",
+    "slug": "intelliprep2",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
