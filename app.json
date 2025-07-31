@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "IntelliPrep2.0",
-    "slug": "intelliprep2",
+    "slug": "intelliprep20",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -16,7 +16,8 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.ajay1106.intelliprep20"
     },
     "web": {
       "bundler": "metro",
@@ -37,6 +38,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "b6b9fe34-d4f2-4097-bd35-ae2e06547e02"
+      }
+    },
+    "owner": "ajay1106"
   }
 }

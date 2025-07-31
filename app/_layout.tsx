@@ -6,6 +6,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from "react";
 import 'react-native-reanimated';
+import { ErrorBoundary } from '../components/ErrorBoundary'; // adjust path if needed
 import { AuthProvider } from "../constants/AuthContext";
 import '../globals.css';
 
@@ -29,6 +30,7 @@ export default function RootLayout() {
   }
 
   return (
+    <ErrorBoundary>
     <AuthProvider>
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack>
@@ -53,5 +55,6 @@ export default function RootLayout() {
       <StatusBar style="auto" />
     </ThemeProvider>
     </AuthProvider>
+    </ErrorBoundary>
   );
 }

@@ -1,7 +1,8 @@
 import { GoogleGenerativeAI } from "@google/generative-ai"
-
+const EXPO_PUBLIC_GEMINI_API_KEY = "AIzaSyAMbcnXmCBEaJi1KldegxDVEFIaj82N_cA"
 // Initialize Gemini AI
-const genAI = new GoogleGenerativeAI(process.env.EXPO_PUBLIC_GEMINI_API_KEY || "")
+// const genAI = new GoogleGenerativeAI(process.env.EXPO_PUBLIC_GEMINI_API_KEY || "")
+const genAI = new GoogleGenerativeAI(EXPO_PUBLIC_GEMINI_API_KEY)
 
 export class AIService {
   private static generateId(): string {
@@ -19,14 +20,14 @@ export class AIService {
   // Enhanced Note AI Functions
   static async summarizeText(text: string): Promise<string> {
     try {
-      if (!process.env.EXPO_PUBLIC_GEMINI_API_KEY) {
+      if (!EXPO_PUBLIC_GEMINI_API_KEY) {
         throw new Error("Gemini API key not configured")
       }
 
       console.log("Summarizing text with Gemini...")
       const prompt = `Please provide a concise summary of the following text. Keep it under 100 words and focus on the key points:\n\n${text}`
 
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
+      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" })
       const result = await model.generateContent(prompt)
       const response = await result.response
       const summary = response.text()
@@ -44,13 +45,13 @@ export class AIService {
 
   static async expandText(text: string): Promise<string> {
     try {
-      if (!process.env.EXPO_PUBLIC_GEMINI_API_KEY) {
+      if (!EXPO_PUBLIC_GEMINI_API_KEY) {
         throw new Error("Gemini API key not configured")
       }
 
       const prompt = `Please expand on the following text by adding more detail, context, and examples while maintaining the same tone and style:\n\n${text}`
 
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
+      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" })
       const result = await model.generateContent(prompt)
       const response = await result.response
       const expandedText = response.text()
@@ -65,7 +66,7 @@ export class AIService {
   // Enhanced text processing with Gemini
   static async enhanceNote(text: string, type: "grammar" | "expand" | "simplify"): Promise<string> {
     try {
-      if (!process.env.EXPO_PUBLIC_GEMINI_API_KEY) {
+      if (!EXPO_PUBLIC_GEMINI_API_KEY) {
         throw new Error("Gemini API key not configured")
       }
 
@@ -82,7 +83,7 @@ export class AIService {
           break
       }
 
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
+      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" })
       const result = await model.generateContent(prompt)
       const response = await result.response
       return response.text().trim()
@@ -99,7 +100,7 @@ export class AIService {
     count: number,
   ): Promise<{ questions: any[] }> {
     try {
-      if (!process.env.EXPO_PUBLIC_GEMINI_API_KEY) {
+      if (!EXPO_PUBLIC_GEMINI_API_KEY) {
         throw new Error("Gemini API key not configured")
       }
 
@@ -127,7 +128,7 @@ export class AIService {
       
       Return only the JSON array, no additional text.`
 
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
+      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" })
       const result = await model.generateContent(prompt)
       const response = await result.response
       const questionsText = response.text()
@@ -168,7 +169,7 @@ export class AIService {
     answer: string,
   ): Promise<{ score: number; feedback: string }> {
     try {
-      if (!process.env.EXPO_PUBLIC_GEMINI_API_KEY) {
+      if (!EXPO_PUBLIC_GEMINI_API_KEY) {
         throw new Error("Gemini API key not configured")
       }
 
@@ -193,7 +194,7 @@ Provide your response in JSON format with:
 
 Be encouraging but honest in your evaluation. Return only the JSON, no additional text.`
 
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
+      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" })
       const result = await model.generateContent(prompt)
       const response = await result.response
       const evaluationText = response.text()
