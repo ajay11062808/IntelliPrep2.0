@@ -1,8 +1,8 @@
 import { GoogleGenerativeAI } from "@google/generative-ai"
-const EXPO_PUBLIC_GEMINI_API_KEY = "AIzaSyAMbcnXmCBEaJi1KldegxDVEFIaj82N_cA"
+
 // Initialize Gemini AI
-// const genAI = new GoogleGenerativeAI(process.env.EXPO_PUBLIC_GEMINI_API_KEY || "")
-const genAI = new GoogleGenerativeAI(EXPO_PUBLIC_GEMINI_API_KEY)
+const genAI = new GoogleGenerativeAI(process.env.EXPO_PUBLIC_GEMINI_API_KEY || "")
+// const genAI = new GoogleGenerativeAI(EXPO_PUBLIC_GEMINI_API_KEY)
 
 export class AIService {
   private static generateId(): string {
@@ -20,7 +20,7 @@ export class AIService {
   // Enhanced Note AI Functions
   static async summarizeText(text: string): Promise<string> {
     try {
-      if (!EXPO_PUBLIC_GEMINI_API_KEY) {
+      if (!process.env.EXPO_PUBLIC_GEMINI_API_KEY) {
         throw new Error("Gemini API key not configured")
       }
 
@@ -45,7 +45,7 @@ export class AIService {
 
   static async expandText(text: string): Promise<string> {
     try {
-      if (!EXPO_PUBLIC_GEMINI_API_KEY) {
+      if (!process.env.EXPO_PUBLIC_GEMINI_API_KEY) {
         throw new Error("Gemini API key not configured")
       }
 
@@ -66,7 +66,7 @@ export class AIService {
   // Enhanced text processing with Gemini
   static async enhanceNote(text: string, type: "grammar" | "expand" | "simplify"): Promise<string> {
     try {
-      if (!EXPO_PUBLIC_GEMINI_API_KEY) {
+      if (!process.env.EXPO_PUBLIC_GEMINI_API_KEY) {
         throw new Error("Gemini API key not configured")
       }
 
@@ -100,7 +100,7 @@ export class AIService {
     count: number,
   ): Promise<{ questions: any[] }> {
     try {
-      if (!EXPO_PUBLIC_GEMINI_API_KEY) {
+      if (!process.env.EXPO_PUBLIC_GEMINI_API_KEY) {
         throw new Error("Gemini API key not configured")
       }
 
@@ -169,7 +169,7 @@ export class AIService {
     answer: string,
   ): Promise<{ score: number; feedback: string }> {
     try {
-      if (!EXPO_PUBLIC_GEMINI_API_KEY) {
+      if (!process.env.EXPO_PUBLIC_GEMINI_API_KEY) {
         throw new Error("Gemini API key not configured")
       }
 

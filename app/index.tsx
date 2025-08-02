@@ -4,6 +4,7 @@ import { ActivityIndicator, View } from "react-native"
 import { useAuth } from "../constants/AuthContext"
 
 export default function Index() {
+  console.log("Index page loaded")
   const { session, loading } = useAuth()
 
   if (loading) {
@@ -18,5 +19,5 @@ export default function Index() {
     return <Redirect href="/(tabs)" />
   }
 
-  return <Redirect href="../(auth)" />
+  return <Redirect href="/(auth)/login" />
 }

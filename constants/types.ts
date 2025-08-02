@@ -22,52 +22,41 @@ export interface Note {
 }
 
 export interface CalculationData {
+  type: "basic" | "interest" | "bmi"
   expression: string
   result: number
-  type: "basic" | "interest" | "compound"
-  metadata?: any
+  timestamp: string
+  metadata?: {
+    // For interest calculations
+    name?: string
+    principal?: number
+    rate?: number
+    fromDate?: string
+    toDate?: string
+    elapsedDays?: number
+    interest?: number
+
+    // For BMI calculations
+    height?: number
+    weight?: number
+    category?: string
+    healthStatus?: string
+  }
 }
 
 export interface InterviewData {
-  interview_id: string
-  duration: number
-  questions_count: number
-  score?: number
-  feedback?: string
-}
-
-export interface Calculation {
-  id: string
-  user_id: string
-  expression: string
-  result: number
-  calculation_type: string
-  metadata?: any
-  saved_to_note?: string
-  created_at: string
-}
-
-export interface MockInterview {
-  id: string
-  user_id: string
-  title: string
-  questions: Question[]
-  responses?: InterviewResponse[]
-  transcript?: string
+  questions: InterviewQuestion[]
+  responses: InterviewResponse[]
   score?: number
   feedback?: string
   duration?: number
-  status: "pending" | "in_progress" | "completed"
-  created_at: string
-  completed_at?: string
 }
 
-export interface Question {
+export interface InterviewQuestion {
   id: string
-  text: string
+  question: string
   category: string
-  difficulty: "easy" | "medium" | "hard"
-  expected_duration: number
+  difficulty: string
 }
 
 export interface InterviewResponse {
@@ -80,8 +69,28 @@ export interface InterviewResponse {
   timestamp: string
 }
 
-export interface AuthError {
-  message: string
-  status?: number
+export interface MockInterview {
+  id: string
+  user_id: string
+  title: string
+  questions: InterviewQuestion[]
+  responses?: InterviewResponse[]
+  transcript?: string
+  score?: number
+  feedback?: string
+  duration?: number
+  status: "pending" | "in_progress" | "completed"
+  created_at: string
+  completed_at?: string
 }
 
+export interface Calculation {
+  id: string
+  user_id: string
+  expression: string
+  result: number
+  calculation_type: "basic" | "interest" | "bmi"
+  metadata?: any
+  saved_to_note?: string
+  created_at: string
+}

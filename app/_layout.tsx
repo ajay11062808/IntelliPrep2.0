@@ -9,11 +9,11 @@ import 'react-native-reanimated';
 import { ErrorBoundary } from '../components/ErrorBoundary'; // adjust path if needed
 import { AuthProvider } from "../constants/AuthContext";
 import '../globals.css';
-
 // Prevent the splash screen from auto-hiding before asset loading is complete
 SplashScreen.preventAutoHideAsync()
 
 export default function RootLayout() {
+  console.log("App layout loaded")
   const colorScheme = useColorScheme();
   const [loaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),

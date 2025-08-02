@@ -1,666 +1,875 @@
 "use client"
 
 import { Ionicons } from "@expo/vector-icons"
-import { useEffect, useState } from "react"
-import { Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native"
+import { LinearGradient } from "expo-linear-gradient"
+import { useRef, useState } from "react"
+import {
+  Alert,
+  Animated,
+  Dimensions,
+  Modal,
+  ScrollView,
+  StatusBar,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Vibration,
+  View,
+} from "react-native"
+import { SafeAreaView } from "react-native-safe-area-context"
+import CalculationHistory from "../../components/CalculationHistory"
 import { useAuth } from "../../constants/AuthContext"
-import type { Calculation } from "../../constants/types"
+import type { CalculationData } from "../../constants/types"
 import { CalculatorService } from "../../services/calculatorService"
-import { NotesService } from "../../services/notesService"
+
+const { width, height } = Dimensions.get("window")
+
+type CalculatorTab = "simple" | "interest" | "bmi"
 
 export default function CalculatorScreen() {
+  const { user } = useAuth()
+  const [activeTab, setActiveTab] = useState<CalculatorTab>("simple")
+  const [showInterestModal, setShowInterestModal] = useState(false)
+  const [showBMIModal, setShowBMIModal] = useState(false)
+  const [showHistoryModal, setShowHistoryModal] = useState(false)
+  const scaleAnim = useRef(new Animated.Value(1)).current
+
+  // Simple calculator state
   const [display, setDisplay] = useState("0")
-  const [previousValue, setPreviousValue] = useState<string | null>(null)
+  const [previousValue, setPreviousValue] = useState<number | null>(null)
   const [operation, setOperation] = useState<string | null>(null)
   const [waitingForOperand, setWaitingForOperand] = useState(false)
-  const [history, setHistory] = useState<Calculation[]>([])
-  const [showHistory, setShowHistory] = useState(false)
-  const [showSaveModal, setShowSaveModal] = useState(false)
-  const [saveNoteTitle, setSaveNoteTitle] = useState("")
-  const [saveNoteContent, setSaveNoteContent] = useState("")
-  const [currentResult, setCurrentResult] = useState<number | null>(null)
-  const [currentExpression, setCurrentExpression] = useState<string>("")
+  const [expression, setExpression] = useState("") // Track full expression
 
-  // Interest calculator states
-  const [showInterestCalc, setShowInterestCalc] = useState(false)
-  const [principal, setPrincipal] = useState("")
-  const [rate, setRate] = useState("")
-  const [time, setTime] = useState("")
-  const [compoundFrequency, setCompoundFrequency] = useState("1")
-  const [interestType, setInterestType] = useState<"simple" | "compound">("simple")
+  // Interest calculator state
+  const [interestForm, setInterestForm] = useState({
+    name: "",
+    amount: "",
+    rate: "",
+    fromDate: "",
+    toDate: "",
+  })
 
-  const { user } = useAuth()
+  // BMI calculator state
+  const [bmiForm, setBmiForm] = useState({
+    name: "",
+    height: "",
+    weight: "",
+  })
 
-  useEffect(() => {
-    if (user) {
-      loadHistory()
-    }
-  }, [user])
+  const tabs = [
+    { id: "simple", name: "Simple", icon: "calculator", gradient: ["#6366F1", "#8B5CF6"] },
+    { id: "interest", name: "Interest", icon: "trending-up", gradient: ["#10B981", "#059669"] },
+    { id: "bmi", name: "BMI", icon: "fitness", gradient: ["#F59E0B", "#D97706"] },
+  ]as const
 
-  const loadHistory = async () => {
-    if (!user) return
-
-    try {
-      const calculationHistory = await CalculatorService.getCalculationHistory(user.id)
-      setHistory(calculationHistory)
-    } catch (error) {
-      console.error("Failed to load calculation history:", error)
-    }
+  const animateButton = () => {
+    Vibration.vibrate(50)
+    Animated.sequence([
+      Animated.timing(scaleAnim, {
+        toValue: 0.95,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start()
   }
 
-  const inputDigit = (digit: string) => {
+  // Simple calculator functions
+  const inputNumber = (num: string) => {
+    animateButton()
     if (waitingForOperand) {
-      setDisplay(digit)
+      setDisplay(String(num))
       setWaitingForOperand(false)
     } else {
-      setDisplay(display === "0" ? digit : display + digit)
+      setDisplay(display === "0" ? String(num) : display + num)
     }
   }
 
-  const inputDecimal = () => {
-    if (waitingForOperand) {
-      setDisplay("0.")
-      setWaitingForOperand(false)
-    } else if (display.indexOf(".") === -1) {
-      setDisplay(display + ".")
-    }
-  }
-
-  const clear = () => {
-    setDisplay("0")
-    setPreviousValue(null)
-    setOperation(null)
-    setWaitingForOperand(false)
-    setCurrentExpression("")
-  }
-
-  const performOperation = (nextOperation: string) => {
+  const inputOperation = (nextOperation: string) => {
+    animateButton()
     const inputValue = Number.parseFloat(display)
 
     if (previousValue === null) {
-      setPreviousValue(display)
-      setCurrentExpression(display + " " + nextOperation + " ")
+      setPreviousValue(inputValue)
+      setExpression(`${inputValue} ${nextOperation}`)
     } else if (operation) {
-      const currentValue = previousValue || "0"
-      const newValue = calculate(currentValue, display, operation)
+      const currentValue = previousValue || 0
+      const newValue = calculate(currentValue, inputValue, operation)
 
       setDisplay(String(newValue))
-      setPreviousValue(String(newValue))
-      setCurrentExpression(currentExpression + display + " " + nextOperation + " ")
+      setPreviousValue(newValue)
+      setExpression(`${newValue} ${nextOperation}`)
     }
 
     setWaitingForOperand(true)
     setOperation(nextOperation)
   }
 
-  const calculate = (firstValue: string, secondValue: string, operation: string): number => {
-    const prev = Number.parseFloat(firstValue)
-    const current = Number.parseFloat(secondValue)
-
+  const calculate = (firstValue: number, secondValue: number, operation: string) => {
     switch (operation) {
       case "+":
-        return prev + current
+        return firstValue + secondValue
       case "-":
-        return prev - current
-      case "×":
-        return prev * current
-      case "÷":
-        return current !== 0 ? prev / current : 0
+        return firstValue - secondValue
+      case "*":
+        return firstValue * secondValue
+      case "/":
+        return firstValue / secondValue
       case "=":
-        return current
+        return secondValue
       default:
-        return current
+        return secondValue
     }
   }
 
-  const handleEquals = async () => {
-    if (operation && previousValue !== null) {
-      const newValue = calculate(previousValue, display, operation)
-      const expression = currentExpression + display + " = " + newValue
+  const performCalculation = async () => {
+    animateButton()
+    const inputValue = Number.parseFloat(display)
+
+    if (previousValue !== null && operation) {
+      const newValue = calculate(previousValue, inputValue, operation)
+      const fullExpression = `${previousValue} ${operation} ${inputValue}`
 
       setDisplay(String(newValue))
       setPreviousValue(null)
       setOperation(null)
       setWaitingForOperand(true)
-      setCurrentResult(newValue)
-      setCurrentExpression(expression)
+      setExpression(`${fullExpression} = ${newValue}`)
 
-      // Save to history
+      // Save to database
       if (user) {
         try {
-          await CalculatorService.saveCalculation(user.id, expression, newValue, "basic")
-          loadHistory()
+          await CalculatorService.saveCalculation(user.id, fullExpression, newValue, "basic")
         } catch (error) {
-          console.error("Failed to save calculation:", error)
+          console.error("Error saving calculation:", error)
         }
       }
     }
   }
 
-  const calculateInterest = async () => {
-    const p = Number.parseFloat(principal)
-    const r = Number.parseFloat(rate)
-    const t = Number.parseFloat(time)
-    const n = Number.parseFloat(compoundFrequency)
-
-    if (isNaN(p) || isNaN(r) || isNaN(t) || p <= 0 || r <= 0 || t <= 0) {
-      Alert.alert("Error", "Please enter valid positive numbers")
-      return
-    }
-
-    let interest: number
-    let expression: string
-
-    if (interestType === "simple") {
-      interest = CalculatorService.calculateSimpleInterest(p, r, t)
-      expression = `Simple Interest: P=${p}, R=${r}%, T=${t} years = ${interest}`
-    } else {
-      interest = CalculatorService.calculateCompoundInterest(p, r, t, n)
-      expression = `Compound Interest: P=${p}, R=${r}%, T=${t} years, n=${n} = ${interest}`
-    }
-
-    setDisplay(String(interest.toFixed(2)))
-    setCurrentResult(interest)
-    setCurrentExpression(expression)
-
-    // Save to history
-    if (user) {
-      try {
-        await CalculatorService.saveCalculation(user.id, expression, interest, interestType, {
-          principal: p,
-          rate: r,
-          time: t,
-          compoundFrequency: n,
-        })
-        loadHistory()
-      } catch (error) {
-        console.error("Failed to save calculation:", error)
-      }
-    }
-
-    setShowInterestCalc(false)
+  const clearCalculator = () => {
+    animateButton()
+    setDisplay("0")
+    setPreviousValue(null)
+    setOperation(null)
+    setWaitingForOperand(false)
+    setExpression("")
   }
 
-  const handleSaveToNotes = async () => {
-    if (!user || currentResult === null) return
+  const saveSimpleCalculationToNotes = async () => {
+    if (!user) return
 
-    if (!saveNoteTitle.trim()) {
-      Alert.alert("Error", "Please enter a note title")
+    const title = `Calculator Result - ${new Date().toLocaleDateString()}`
+    const content = `Calculation: ${expression || display}\nResult: ${display}\nCalculated on: ${new Date().toLocaleString()}`
+
+    const calculationData: CalculationData = {
+      type: "basic",
+      expression: expression || display,
+      result: Number.parseFloat(display),
+      timestamp: new Date().toISOString(),
+    }
+
+    try {
+      await CalculatorService.saveCalculationToNotes(user.id, title, content, calculationData)
+      Alert.alert("Success", "Calculation saved to notes!")
+    } catch (error) {
+      Alert.alert("Error", "Failed to save calculation to notes")
+    }
+  }
+
+  // Interest calculator functions
+  const calculateInterest = async () => {
+    if (
+      !interestForm.name ||
+      !interestForm.amount ||
+      !interestForm.rate ||
+      !interestForm.fromDate ||
+      !interestForm.toDate
+    ) {
+      Alert.alert("Error", "Please fill in all fields")
       return
     }
 
     try {
-      const noteContent = saveNoteContent.trim()
-        ? `${saveNoteContent}\n\nCalculation: ${currentExpression}`
-        : `Calculation: ${currentExpression}`
+      const result = CalculatorService.calculateInterest(
+        Number.parseFloat(interestForm.amount),
+        Number.parseFloat(interestForm.rate),
+        interestForm.fromDate,
+        interestForm.toDate,
+      )
 
-      await NotesService.createNote(user.id, saveNoteTitle.trim(), noteContent, "calculation", true, false, {
-        expression: currentExpression,
-        result: currentResult,
-        type: "basic",
-      })
+      // Save to database FIRST
+      if (user) {
+        const expression = `${interestForm.name}: $${result.principal} at ${result.rate}% for ${result.elapsedDays} days`
+        await CalculatorService.saveCalculation(user.id, expression, result.totalAmount, "interest", {
+          name: interestForm.name,
+          principal: result.principal,
+          rate: result.rate,
+          fromDate: interestForm.fromDate,
+          toDate: interestForm.toDate,
+          elapsedDays: result.elapsedDays,
+          interest: result.interest,
+        })
+      }
 
-      Alert.alert("Success", "Calculation saved to notes!")
-      setShowSaveModal(false)
-      setSaveNoteTitle("")
-      setSaveNoteContent("")
-    } catch (error: any) {
+      const resultText = `Interest Calculation Results:
+Name: ${interestForm.name}
+Principal Amount: $${result.principal.toLocaleString()}
+Interest Rate: ${result.rate}% per annum
+Period: ${interestForm.fromDate} to ${interestForm.toDate}
+Elapsed Days: ${result.elapsedDays} days
+Interest Earned: $${result.interest.toLocaleString()}
+Total Amount: $${result.totalAmount.toLocaleString()}`
+
+      Alert.alert("Interest Calculation", resultText, [
+        { text: "OK" },
+        {
+          text: "Save to Notes",
+          onPress: () => saveInterestToNotes(result),
+        },
+      ])
+    } catch (error) {
+      Alert.alert("Error", "Invalid input values")
+    }
+  }
+
+  const saveInterestToNotes = async (result: any) => {
+    if (!user) return
+
+    const title = `Interest Calculation - ${interestForm.name}`
+    const content = `Interest Calculation Results:
+Name: ${interestForm.name}
+Principal Amount: $${result.principal.toLocaleString()}
+Interest Rate: ${result.rate}% per annum
+Period: ${interestForm.fromDate} to ${interestForm.toDate}
+Elapsed Days: ${result.elapsedDays} days
+Interest Earned: $${result.interest.toLocaleString()}
+Total Amount: $${result.totalAmount.toLocaleString()}
+
+Calculated on: ${new Date().toLocaleString()}`
+
+    const calculationData: CalculationData = {
+      type: "interest",
+      expression: `${interestForm.name}: $${result.principal} at ${result.rate}% for ${result.elapsedDays} days`,
+      result: result.totalAmount,
+      timestamp: new Date().toISOString(),
+      metadata: {
+        name: interestForm.name,
+        principal: result.principal,
+        rate: result.rate,
+        fromDate: interestForm.fromDate,
+        toDate: interestForm.toDate,
+        elapsedDays: result.elapsedDays,
+        interest: result.interest,
+      },
+    }
+
+    try {
+      await CalculatorService.saveCalculationToNotes(user.id, title, content, calculationData)
+      Alert.alert("Success", "Interest calculation saved to notes!")
+      setShowInterestModal(false)
+      setInterestForm({ name: "", amount: "", rate: "", fromDate: "", toDate: "" })
+    } catch (error) {
       Alert.alert("Error", "Failed to save to notes")
     }
   }
 
-  const renderButton = (text: string, onPress: () => void, style?: any) => (
-    <TouchableOpacity style={[styles.button, style]} onPress={onPress}>
-      <Text style={[styles.buttonText, style?.color && { color: style.color }]}>{text}</Text>
+  // BMI calculator functions
+  const calculateBMI = async () => {
+    if (!bmiForm.name || !bmiForm.height || !bmiForm.weight) {
+      Alert.alert("Error", "Please fill in all fields")
+      return
+    }
+
+    try {
+      const result = CalculatorService.calculateBMI(
+        Number.parseFloat(bmiForm.height),
+        Number.parseFloat(bmiForm.weight),
+      )
+
+      // Save to database FIRST
+      if (user) {
+        const expression = `${bmiForm.name}: BMI for ${result.height}cm, ${result.weight}kg`
+        await CalculatorService.saveCalculation(user.id, expression, result.bmi, "bmi", {
+          name: bmiForm.name,
+          height: result.height,
+          weight: result.weight,
+          category: result.category,
+          healthStatus: result.healthStatus,
+        })
+      }
+
+      const resultText = `BMI Calculation Results:
+Name: ${bmiForm.name}
+Height: ${result.height} cm
+Weight: ${result.weight} kg
+BMI: ${result.bmi}
+Category: ${result.category}
+
+Health Status: ${result.healthStatus}`
+
+      Alert.alert("BMI Calculation", resultText, [
+        { text: "OK" },
+        {
+          text: "Save to Notes",
+          onPress: () => saveBMIToNotes(result),
+        },
+      ])
+    } catch (error) {
+      Alert.alert("Error", "Invalid input values")
+    }
+  }
+
+  const saveBMIToNotes = async (result: any) => {
+    if (!user) return
+
+    const title = `BMI Calculation - ${bmiForm.name}`
+    const content = `BMI Calculation Results:
+Name: ${bmiForm.name}
+Height: ${result.height} cm
+Weight: ${result.weight} kg
+BMI: ${result.bmi}
+Category: ${result.category}
+
+Health Status: ${result.healthStatus}
+
+Calculated on: ${new Date().toLocaleString()}`
+
+    const calculationData: CalculationData = {
+      type: "bmi",
+      expression: `${bmiForm.name}: BMI for ${result.height}cm, ${result.weight}kg`,
+      result: result.bmi,
+      timestamp: new Date().toISOString(),
+      metadata: {
+        name: bmiForm.name,
+        height: result.height,
+        weight: result.weight,
+        category: result.category,
+        healthStatus: result.healthStatus,
+      },
+    }
+
+    try {
+      await CalculatorService.saveCalculationToNotes(user.id, title, content, calculationData)
+      Alert.alert("Success", "BMI calculation saved to notes!")
+      setShowBMIModal(false)
+      setBmiForm({ name: "", height: "", weight: "" })
+    } catch (error) {
+      Alert.alert("Error", "Failed to save to notes")
+    }
+  }
+
+  const renderCalculatorButton = (title: string, onPress: () => void, buttonType?: string) => (
+    <TouchableOpacity onPress={onPress} style={{ flex: 1, margin: 4 }}>
+      <LinearGradient
+        colors={
+          buttonType === "operator"
+            ? ["#F97316", "#EA580C"]
+            : buttonType === "clear"
+              ? ["#EF4444", "#DC2626"]
+              : buttonType === "equals"
+                ? ["#10B981", "#059669"]
+                : ["rgba(255,255,255,0.9)", "rgba(255,255,255,0.7)"]
+        }
+        style={{
+          height: 70,
+          borderRadius: 20,
+          alignItems: "center",
+          justifyContent: "center",
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+          elevation: 3,
+        }}
+      >
+        <Text
+          style={{
+            fontSize: 24,
+            fontWeight: "bold",
+            color: buttonType ? "white" : "#374151",
+          }}
+        >
+          {title}
+        </Text>
+      </LinearGradient>
     </TouchableOpacity>
   )
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Calculator</Text>
-        <View style={styles.headerButtons}>
-          <TouchableOpacity style={styles.headerButton} onPress={() => setShowInterestCalc(true)}>
-            <Ionicons name="trending-up" size={24} color="#2196F3" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerButton} onPress={() => setShowHistory(true)}>
-            <Ionicons name="time" size={24} color="#2196F3" />
-          </TouchableOpacity>
-        </View>
-      </View>
+  const renderSimpleCalculator = () => (
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: 100 }}>
+      {/* Display */}
+      <View style={{ marginBottom: 30 }}>
+        <LinearGradient
+          colors={["rgba(255,255,255,0.9)", "rgba(255,255,255,0.7)"]}
+          style={{
+            borderRadius: 25,
+            padding: 24,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.1,
+            shadowRadius: 8,
+            elevation: 5,
+          }}
+        >
+          {/* Expression Display */}
+          {expression && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+              <Text
+                style={{
+                  fontSize: 18,
+                  color: "#6B7280",
+                  fontWeight: "500",
+                  minHeight: 25,
+                }}
+              >
+                {expression}
+              </Text>
+            </ScrollView>
+          )}
 
-      <View style={styles.displayContainer}>
-        <Text style={styles.display}>{display}</Text>
-        {currentExpression && <Text style={styles.expression}>{currentExpression}</Text>}
-      </View>
-
-      <View style={styles.buttonContainer}>
-        <View style={styles.row}>
-          {renderButton("C", clear, styles.operatorButton)}
-          {renderButton("±", () => {}, styles.operatorButton)}
-          {renderButton("%", () => {}, styles.operatorButton)}
-          {renderButton("÷", () => performOperation("÷"), styles.operatorButton)}
-        </View>
-
-        <View style={styles.row}>
-          {renderButton("7", () => inputDigit("7"))}
-          {renderButton("8", () => inputDigit("8"))}
-          {renderButton("9", () => inputDigit("9"))}
-          {renderButton("×", () => performOperation("×"), styles.operatorButton)}
-        </View>
-
-        <View style={styles.row}>
-          {renderButton("4", () => inputDigit("4"))}
-          {renderButton("5", () => inputDigit("5"))}
-          {renderButton("6", () => inputDigit("6"))}
-          {renderButton("-", () => performOperation("-"), styles.operatorButton)}
-        </View>
-
-        <View style={styles.row}>
-          {renderButton("1", () => inputDigit("1"))}
-          {renderButton("2", () => inputDigit("2"))}
-          {renderButton("3", () => inputDigit("3"))}
-          {renderButton("+", () => performOperation("+"), styles.operatorButton)}
-        </View>
-
-        <View style={styles.row}>
-          {renderButton("0", () => inputDigit("0"), styles.zeroButton)}
-          {renderButton(".", inputDecimal)}
-          {renderButton("=", handleEquals, styles.equalsButton)}
-        </View>
-      </View>
-
-      {currentResult !== null && (
-        <TouchableOpacity style={styles.saveButton} onPress={() => setShowSaveModal(true)}>
-          <Ionicons name="save" size={20} color="white" />
-          <Text style={styles.saveButtonText}>Save to Notes</Text>
-        </TouchableOpacity>
-      )}
-
-      {/* History Modal */}
-      <Modal visible={showHistory} animationType="slide" presentationStyle="pageSheet">
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Calculation History</Text>
-            <TouchableOpacity onPress={() => setShowHistory(false)}>
-              <Ionicons name="close" size={24} color="#333" />
-            </TouchableOpacity>
-          </View>
-          <ScrollView style={styles.historyList}>
-            {history.map((item) => (
-              <View key={item.id} style={styles.historyItem}>
-                <Text style={styles.historyExpression}>{item.expression}</Text>
-                <Text style={styles.historyDate}>{new Date(item.created_at).toLocaleDateString()}</Text>
-              </View>
-            ))}
+          {/* Current Display */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+            <Text
+              style={{
+                fontSize: 48,
+                fontWeight: "bold",
+                color: "#374151",
+                minHeight: 60,
+              }}
+            >
+              {display}
+            </Text>
           </ScrollView>
-        </View>
-      </Modal>
 
-      {/* Interest Calculator Modal */}
-      <Modal visible={showInterestCalc} animationType="slide" presentationStyle="pageSheet">
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Interest Calculator</Text>
-            <TouchableOpacity onPress={() => setShowInterestCalc(false)}>
-              <Ionicons name="close" size={24} color="#333" />
+          {/* Operation Indicator */}
+          {operation && previousValue !== null && (
+            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 16 }}>
+              <View
+                style={{
+                  backgroundColor: "#F97316",
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 12,
+                }}
+              >
+                <Text style={{ color: "white", fontWeight: "600", fontSize: 14 }}>
+                  {previousValue} {operation} ...
+                </Text>
+              </View>
+            </View>
+          )}
+
+          <TouchableOpacity onPress={saveSimpleCalculationToNotes}>
+            <LinearGradient
+              colors={["#6366F1", "#8B5CF6"]}
+              style={{
+                paddingHorizontal: 20,
+                paddingVertical: 12,
+                borderRadius: 15,
+                alignSelf: "flex-end",
+              }}
+            >
+              <Text style={{ color: "white", fontWeight: "600" }}>Save to Notes</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </LinearGradient>
+      </View>
+
+      {/* Calculator Buttons */}
+      <View style={{ minHeight: 400 }}>
+        {/* Row 1 */}
+        <View style={{ flexDirection: "row", marginBottom: 8 }}>
+          {renderCalculatorButton("C", clearCalculator, "clear")}
+          {renderCalculatorButton("÷", () => inputOperation("/"), "operator")}
+          {renderCalculatorButton("×", () => inputOperation("*"), "operator")}
+          {renderCalculatorButton("⌫", () => setDisplay(display.slice(0, -1) || "0"), "operator")}
+        </View>
+
+        {/* Row 2 */}
+        <View style={{ flexDirection: "row", marginBottom: 8 }}>
+          {renderCalculatorButton("7", () => inputNumber("7"))}
+          {renderCalculatorButton("8", () => inputNumber("8"))}
+          {renderCalculatorButton("9", () => inputNumber("9"))}
+          {renderCalculatorButton("-", () => inputOperation("-"), "operator")}
+        </View>
+
+        {/* Row 3 */}
+        <View style={{ flexDirection: "row", marginBottom: 8 }}>
+          {renderCalculatorButton("4", () => inputNumber("4"))}
+          {renderCalculatorButton("5", () => inputNumber("5"))}
+          {renderCalculatorButton("6", () => inputNumber("6"))}
+          {renderCalculatorButton("+", () => inputOperation("+"), "operator")}
+        </View>
+
+        {/* Row 4 */}
+        <View style={{ flexDirection: "row", marginBottom: 8 }}>
+          {renderCalculatorButton("1", () => inputNumber("1"))}
+          {renderCalculatorButton("2", () => inputNumber("2"))}
+          {renderCalculatorButton("3", () => inputNumber("3"))}
+          <View style={{ flex: 1, margin: 4 }}>
+            <TouchableOpacity onPress={performCalculation} style={{ flex: 1 }}>
+              <LinearGradient
+                colors={["#10B981", "#059669"]}
+                style={{
+                  flex: 1,
+                  borderRadius: 20,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                  elevation: 3,
+                }}
+              >
+                <Text style={{ fontSize: 24, fontWeight: "bold", color: "white" }}>=</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
+        </View>
 
-          <ScrollView style={styles.interestForm}>
-            <View style={styles.interestTypeSelector}>
-              <TouchableOpacity
-                style={[styles.interestTypeButton, interestType === "simple" && styles.interestTypeButtonActive]}
-                onPress={() => setInterestType("simple")}
+        {/* Row 5 */}
+        <View style={{ flexDirection: "row" }}>
+          <View style={{ flex: 2, margin: 4 }}>
+            <TouchableOpacity onPress={() => inputNumber("0")} style={{ flex: 1 }}>
+              <LinearGradient
+                colors={["rgba(255,255,255,0.9)", "rgba(255,255,255,0.7)"]}
+                style={{
+                  height: 70,
+                  borderRadius: 20,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                  elevation: 3,
+                }}
               >
-                <Text
-                  style={[
-                    styles.interestTypeButtonText,
-                    interestType === "simple" && styles.interestTypeButtonTextActive,
-                  ]}
-                >
-                  Simple Interest
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.interestTypeButton, interestType === "compound" && styles.interestTypeButtonActive]}
-                onPress={() => setInterestType("compound")}
+                <Text style={{ fontSize: 24, fontWeight: "bold", color: "#374151" }}>0</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+          {renderCalculatorButton(".", () => inputNumber("."))}
+        </View>
+      </View>
+    </ScrollView>
+  )
+
+  const renderTabButtons = () => (
+    <View style={{ paddingHorizontal: 20, paddingVertical: 16 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <View style={{ flexDirection: "row", gap: 12 }}>
+          {tabs.map((tab) => (
+            <TouchableOpacity
+              key={tab.id}
+              onPress={() => {
+                if (tab.id === "interest") {
+                  setShowInterestModal(true)
+                } else if (tab.id === "bmi") {
+                  setShowBMIModal(true)
+                } else {
+                  setActiveTab(tab.id as CalculatorTab)
+                }
+              }}
+            >
+              <LinearGradient
+                colors={activeTab === tab.id ? tab.gradient : ["rgba(255,255,255,0.3)", "rgba(255,255,255,0.1)"]}
+                style={{
+                  paddingHorizontal: 20,
+                  paddingVertical: 12,
+                  borderRadius: 20,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  minWidth: 120,
+                  justifyContent: "center",
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                  elevation: 3,
+                }}
               >
-                <Text
-                  style={[
-                    styles.interestTypeButtonText,
-                    interestType === "compound" && styles.interestTypeButtonTextActive,
-                  ]}
-                >
-                  Compound Interest
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Principal Amount</Text>
-              <TextInput
-                style={styles.input}
-                value={principal}
-                onChangeText={setPrincipal}
-                placeholder="Enter principal amount"
-                keyboardType="numeric"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Interest Rate (%)</Text>
-              <TextInput
-                style={styles.input}
-                value={rate}
-                onChangeText={setRate}
-                placeholder="Enter interest rate"
-                keyboardType="numeric"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Time (years)</Text>
-              <TextInput
-                style={styles.input}
-                value={time}
-                onChangeText={setTime}
-                placeholder="Enter time in years"
-                keyboardType="numeric"
-              />
-            </View>
-
-            {interestType === "compound" && (
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Compounding Frequency (per year)</Text>
-                <TextInput
-                  style={styles.input}
-                  value={compoundFrequency}
-                  onChangeText={setCompoundFrequency}
-                  placeholder="Enter compounding frequency"
-                  keyboardType="numeric"
+                <Ionicons
+                  name={tab.icon as any}
+                  size={20}
+                  color={activeTab === tab.id ? "white" : "rgba(255,255,255,0.8)"}
                 />
-              </View>
-            )}
-
-            <TouchableOpacity style={styles.calculateButton} onPress={calculateInterest}>
-              <Text style={styles.calculateButtonText}>Calculate Interest</Text>
+                <Text
+                  style={{
+                    marginLeft: 8,
+                    fontWeight: "600",
+                    color: activeTab === tab.id ? "white" : "rgba(255,255,255,0.8)",
+                  }}
+                >
+                  {tab.name}
+                </Text>
+              </LinearGradient>
             </TouchableOpacity>
-          </ScrollView>
+          ))}
         </View>
-      </Modal>
-
-      {/* Save to Notes Modal */}
-      <Modal visible={showSaveModal} animationType="slide" presentationStyle="pageSheet">
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Save to Notes</Text>
-            <TouchableOpacity onPress={() => setShowSaveModal(false)}>
-              <Ionicons name="close" size={24} color="#333" />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.saveForm}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Note Title</Text>
-              <TextInput
-                style={styles.input}
-                value={saveNoteTitle}
-                onChangeText={setSaveNoteTitle}
-                placeholder="Enter note title"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Additional Context (Optional)</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                value={saveNoteContent}
-                onChangeText={setSaveNoteContent}
-                placeholder="Add any additional context or notes..."
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-              />
-            </View>
-
-            <View style={styles.calculationPreview}>
-              <Text style={styles.calculationPreviewLabel}>Calculation:</Text>
-              <Text style={styles.calculationPreviewText}>{currentExpression}</Text>
-            </View>
-
-            <TouchableOpacity style={styles.saveToNotesButton} onPress={handleSaveToNotes}>
-              <Text style={styles.saveToNotesButtonText}>Save to Notes</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      </ScrollView>
     </View>
   )
-}
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f5f5f5",
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    paddingTop: 50,
-    backgroundColor: "white",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  headerButtons: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  headerButton: {
-    padding: 8,
-  },
-  displayContainer: {
-    backgroundColor: "white",
-    paddingHorizontal: 20,
-    paddingVertical: 30,
-    alignItems: "flex-end",
-  },
-  display: {
-    fontSize: 48,
-    fontWeight: "300",
-    color: "#333",
-  },
-  expression: {
-    fontSize: 16,
-    color: "#666",
-    marginTop: 8,
-  },
-  buttonContainer: {
-    flex: 1,
-    padding: 20,
-  },
-  row: {
-    flexDirection: "row",
-    marginBottom: 12,
-    gap: 12,
-  },
-  button: {
-    flex: 1,
-    height: 70,
-    backgroundColor: "#e0e0e0",
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 8,
-  },
-  buttonText: {
-    fontSize: 24,
-    fontWeight: "400",
-    color: "#333",
-  },
-  operatorButton: {
-    backgroundColor: "#2196F3",
-    color: "white",
-  },
-  equalsButton: {
-    backgroundColor: "#4CAF50",
-    color: "white",
-  },
-  zeroButton: {
-    flex: 2,
-  },
-  saveButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#2196F3",
-    marginHorizontal: 20,
-    marginBottom: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    gap: 8,
-  },
-  saveButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: "white",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    paddingTop: 50,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#333",
-  },
-  historyList: {
-    flex: 1,
-    padding: 20,
-  },
-  historyItem: {
-    backgroundColor: "#f9f9f9",
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 12,
-  },
-  historyExpression: {
-    fontSize: 16,
-    color: "#333",
-    marginBottom: 4,
-  },
-  historyDate: {
-    fontSize: 12,
-    color: "#666",
-  },
-  interestForm: {
-    flex: 1,
-    padding: 20,
-  },
-  interestTypeSelector: {
-    flexDirection: "row",
-    marginBottom: 20,
-    gap: 12,
-  },
-  interestTypeButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#2196F3",
-    alignItems: "center",
-  },
-  interestTypeButtonActive: {
-    backgroundColor: "#2196F3",
-  },
-  interestTypeButtonText: {
-    fontSize: 14,
-    color: "#2196F3",
-    fontWeight: "600",
-  },
-  interestTypeButtonTextActive: {
-    color: "white",
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  inputLabel: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: "#f9f9f9",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: "#ddd",
-  },
-  textArea: {
-    height: 100,
-  },
-  calculateButton: {
-    backgroundColor: "#4CAF50",
-    paddingVertical: 16,
-    borderRadius: 8,
-    alignItems: "center",
-    marginTop: 20,
-  },
-  calculateButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  saveForm: {
-    flex: 1,
-    padding: 20,
-  },
-  calculationPreview: {
-    backgroundColor: "#f9f9f9",
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 20,
-  },
-  calculationPreviewLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#666",
-    marginBottom: 4,
-  },
-  calculationPreviewText: {
-    fontSize: 16,
-    color: "#333",
-  },
-  saveToNotesButton: {
-    backgroundColor: "#2196F3",
-    paddingVertical: 16,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  saveToNotesButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-})
+  const renderModernInput = (
+    label: string,
+    value: string,
+    onChangeText: (text: string) => void,
+    placeholder: string,
+    keyboardType?: any,
+  ) => (
+    <View style={{ marginBottom: 24 }}>
+      <Text style={{ color: "#374151", marginBottom: 12, fontWeight: "600", fontSize: 16 }}>{label}</Text>
+      <LinearGradient
+        colors={["rgba(255,255,255,0.9)", "rgba(255,255,255,0.7)"]}
+        style={{ borderRadius: 15, overflow: "hidden" }}
+      >
+        <TextInput
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          keyboardType={keyboardType}
+          placeholderTextColor="rgba(0,0,0,0.4)"
+          style={{
+            paddingHorizontal: 16,
+            paddingVertical: 16,
+            color: "#374151",
+            fontSize: 16,
+          }}
+        />
+      </LinearGradient>
+    </View>
+  )
+
+  return (
+    <>
+      <StatusBar barStyle="light-content" backgroundColor="#1F2937" />
+      <LinearGradient colors={["#1F2937", "#374151", "#4B5563"]} style={{ flex: 1 }}>
+        <SafeAreaView style={{ flex: 1 }}>
+          {/* Header */}
+          <View
+            style={{
+              paddingHorizontal: 20,
+              paddingVertical: 16,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <View>
+              <Text style={{ color: "white", fontSize: 28, fontWeight: "bold" }}>Calculator</Text>
+              <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 16, marginTop: 4 }}>
+                Advanced calculations made simple
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => setShowHistoryModal(true)}
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 24,
+                backgroundColor: "rgba(255,255,255,0.2)",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Ionicons name="time-outline" size={24} color="white" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Tab Buttons */}
+          {renderTabButtons()}
+
+          {/* Simple Calculator - Now scrollable with operation display */}
+          {activeTab === "simple" && renderSimpleCalculator()}
+
+          {/* Interest Calculator Modal */}
+          <Modal visible={showInterestModal} animationType="slide" presentationStyle="pageSheet">
+            <LinearGradient colors={["#10B981", "#059669"]} style={{ flex: 1 }}>
+              <SafeAreaView style={{ flex: 1 }}>
+                <View
+                  style={{
+                    paddingHorizontal: 20,
+                    paddingVertical: 16,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <Text style={{ color: "white", fontSize: 24, fontWeight: "bold" }}>Interest Calculator</Text>
+                  <TouchableOpacity onPress={() => setShowInterestModal(false)}>
+                    <Ionicons name="close" size={28} color="white" />
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView style={{ flex: 1, paddingHorizontal: 20 }}>
+                  <LinearGradient
+                    colors={["rgba(255,255,255,0.9)", "rgba(255,255,255,0.7)"]}
+                    style={{ borderRadius: 25, padding: 24, marginBottom: 24 }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 24,
+                        fontWeight: "bold",
+                        color: "#374151",
+                        marginBottom: 24,
+                        textAlign: "center",
+                      }}
+                    >
+                      Calculate Simple Interest
+                    </Text>
+
+                    {renderModernInput(
+                      "Name/Description",
+                      interestForm.name,
+                      (text) => setInterestForm({ ...interestForm, name: text }),
+                      "e.g., Savings Account",
+                    )}
+                    {renderModernInput(
+                      "Principal Amount ($)",
+                      interestForm.amount,
+                      (text) => setInterestForm({ ...interestForm, amount: text }),
+                      "10000",
+                      "numeric",
+                    )}
+                    {renderModernInput(
+                      "Interest Rate (% per annum)",
+                      interestForm.rate,
+                      (text) => setInterestForm({ ...interestForm, rate: text }),
+                      "5.5",
+                      "numeric",
+                    )}
+                    {renderModernInput(
+                      "From Date",
+                      interestForm.fromDate,
+                      (text) => setInterestForm({ ...interestForm, fromDate: text }),
+                      "YYYY-MM-DD",
+                    )}
+                    {renderModernInput(
+                      "To Date",
+                      interestForm.toDate,
+                      (text) => setInterestForm({ ...interestForm, toDate: text }),
+                      "YYYY-MM-DD",
+                    )}
+
+                    <TouchableOpacity onPress={calculateInterest}>
+                      <LinearGradient
+                        colors={["#10B981", "#059669"]}
+                        style={{
+                          paddingVertical: 16,
+                          borderRadius: 15,
+                          alignItems: "center",
+                        }}
+                      >
+                        <Text style={{ color: "white", fontWeight: "bold", fontSize: 18 }}>Calculate Interest</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  </LinearGradient>
+                </ScrollView>
+              </SafeAreaView>
+            </LinearGradient>
+          </Modal>
+
+          {/* BMI Calculator Modal */}
+          <Modal visible={showBMIModal} animationType="slide" presentationStyle="pageSheet">
+            <LinearGradient colors={["#F59E0B", "#D97706"]} style={{ flex: 1 }}>
+              <SafeAreaView style={{ flex: 1 }}>
+                <View
+                  style={{
+                    paddingHorizontal: 20,
+                    paddingVertical: 16,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <Text style={{ color: "white", fontSize: 24, fontWeight: "bold" }}>BMI Calculator</Text>
+                  <TouchableOpacity onPress={() => setShowBMIModal(false)}>
+                    <Ionicons name="close" size={28} color="white" />
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView style={{ flex: 1, paddingHorizontal: 20 }}>
+                  <LinearGradient
+                    colors={["rgba(255,255,255,0.9)", "rgba(255,255,255,0.7)"]}
+                    style={{ borderRadius: 25, padding: 24, marginBottom: 24 }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 24,
+                        fontWeight: "bold",
+                        color: "#374151",
+                        marginBottom: 24,
+                        textAlign: "center",
+                      }}
+                    >
+                      Calculate Body Mass Index
+                    </Text>
+
+                    {renderModernInput(
+                      "Name",
+                      bmiForm.name,
+                      (text) => setBmiForm({ ...bmiForm, name: text }),
+                      "Your name",
+                    )}
+                    {renderModernInput(
+                      "Height (cm)",
+                      bmiForm.height,
+                      (text) => setBmiForm({ ...bmiForm, height: text }),
+                      "170",
+                      "numeric",
+                    )}
+                    {renderModernInput(
+                      "Weight (kg)",
+                      bmiForm.weight,
+                      (text) => setBmiForm({ ...bmiForm, weight: text }),
+                      "70",
+                      "numeric",
+                    )}
+
+                    <TouchableOpacity onPress={calculateBMI} style={{ marginBottom: 24 }}>
+                      <LinearGradient
+                        colors={["#F59E0B", "#D97706"]}
+                        style={{
+                          paddingVertical: 16,
+                          borderRadius: 15,
+                          alignItems: "center",
+                        }}
+                      >
+                        <Text style={{ color: "white", fontWeight: "bold", fontSize: 18 }}>Calculate BMI</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+
+                    {/* BMI Categories Info */}
+                    <LinearGradient
+                      colors={["rgba(59, 130, 246, 0.1)", "rgba(37, 99, 235, 0.1)"]}
+                      style={{ borderRadius: 15, padding: 16 }}
+                    >
+                      <Text style={{ fontWeight: "bold", color: "#374151", marginBottom: 12, fontSize: 18 }}>
+                        BMI Categories:
+                      </Text>
+                      <Text style={{ color: "#6B7280", marginBottom: 4 }}>• Underweight: Below 18.5</Text>
+                      <Text style={{ color: "#6B7280", marginBottom: 4 }}>• Normal weight: 18.5-24.9</Text>
+                      <Text style={{ color: "#6B7280", marginBottom: 4 }}>• Overweight: 25-29.9</Text>
+                      <Text style={{ color: "#6B7280" }}>• Obese: 30 and above</Text>
+                    </LinearGradient>
+                  </LinearGradient>
+                </ScrollView>
+              </SafeAreaView>
+            </LinearGradient>
+          </Modal>
+
+          {/* Calculation History Modal */}
+          <CalculationHistory visible={showHistoryModal} onClose={() => setShowHistoryModal(false)} />
+        </SafeAreaView>
+      </LinearGradient>
+    </>
+  )
+}
