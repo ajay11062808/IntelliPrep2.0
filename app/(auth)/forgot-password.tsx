@@ -6,17 +6,18 @@ import { LinearGradient } from "expo-linear-gradient"
 import { Link, router } from "expo-router"
 import { useEffect, useRef, useState } from "react"
 import {
-    ActivityIndicator,
-    Alert,
-    Animated,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Animated,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native"
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { useAuth } from "../../constants/AuthContext"
 
@@ -117,16 +118,16 @@ export default function ForgotPasswordScreen() {
                 className="items-center"
               >
                 <BlurView intensity={20} tint="light" style={{ borderRadius: 25, overflow: "hidden" }}>
-                  <View className="bg-white/90 p-8 rounded-3xl shadow-2xl items-center">
+                  <View className="bg-white/90 dark:bg-gray-800 p-8 rounded-3xl shadow-2xl items-center">
                     <View className="w-20 h-20 bg-green-100 rounded-full items-center justify-center mb-6">
                       <Ionicons name="checkmark-circle" size={40} color="#10B981" />
                     </View>
-                    <Text className="text-2xl font-bold text-gray-800 mb-4 text-center">
+                    <Text className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4 text-center">
                       Check Your Email
                     </Text>
-                    <Text className="text-gray-600 text-center mb-8 leading-6">
+                    <Text className="text-gray-600 dark:text-gray-400 text-center mb-8 leading-6">
                       We've sent password reset instructions to{" "}
-                      <Text className="font-semibold text-blue-600">{email}</Text>
+                      <Text className="font-semibold text-blue-600 dark:text-blue-400">{email}</Text>
                     </Text>
 
                     <Link href="../(auth)/login" asChild>
@@ -135,7 +136,7 @@ export default function ForgotPasswordScreen() {
                           colors={["#667eea", "#764ba2"]}
                           style={{ borderRadius: 16, paddingVertical: 16 }}
                         >
-                          <Text className="text-white text-center text-lg font-semibold">
+                          <Text className="text-white dark:text-gray-100 text-center text-lg font-semibold">
                             Back to Login
                           </Text>
                         </LinearGradient>
@@ -155,15 +156,17 @@ export default function ForgotPasswordScreen() {
     <LinearGradient colors={["#667eea", "#764ba2", "#f093fb"]} style={{ flex: 1 }}>
       <SafeAreaView className="flex-1">
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
           className="flex-1"
-          keyboardVerticalOffset={Platform.OS === "ios" ? 12 : 0}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
         >
-          <ScrollView
-            className="flex-1 px-8"
-            contentContainerStyle={{ flexGrow: 1, justifyContent: "center", paddingBottom: 24 }}
-            keyboardShouldPersistTaps="handled"
+          <KeyboardAwareScrollView
+            enableOnAndroid
+            extraScrollHeight={20}
+            extraHeight={Platform.OS === "android" ? 100 : 0}
+            keyboardShouldPersistTaps="always"
             showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ flexGrow: 1, justifyContent: "center", paddingVertical: 24, paddingHorizontal: 32 }}
           >
           {/* Header */}
           <Animated.View
@@ -190,21 +193,21 @@ export default function ForgotPasswordScreen() {
             }}
           >
             <BlurView intensity={20} tint="light" style={{ borderRadius: 25, overflow: "hidden" }}>
-              <View className="bg-white/90 p-8 rounded-3xl shadow-2xl">
-                <Text className="text-2xl font-bold text-gray-800 mb-6 text-center">
+              <View className="bg-white/90 dark:bg-gray-800 p-8 rounded-3xl shadow-2xl">
+                <Text className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6 text-center">
                   Forgot Password?
                 </Text>
 
-                <Text className="text-gray-600 text-center mb-8 leading-6">
+                <Text className="text-gray-600 dark:text-gray-400 text-center mb-8 leading-6">
                   Don't worry! Enter your email address and we'll send you instructions to reset your password.
                 </Text>
 
                 {/* Email Input */}
                 <View className="mb-8">
-                  <View className="flex-row items-center bg-white/50 rounded-2xl px-4 py-3 border border-white/30">
+                  <View className="flex-row items-center bg-white/50 dark:bg-gray-800 rounded-2xl px-4 py-3 border border-white/30">
                     <Ionicons name="mail" size={20} color="#667eea" />
                     <TextInput
-                      className="flex-1 ml-3 text-gray-800 text-base"
+                      className="flex-1 ml-3 text-gray-800 dark:text-gray-100 text-base"
                       placeholder="Email address"
                       placeholderTextColor="#9CA3AF"
                       value={email}
@@ -250,8 +253,8 @@ export default function ForgotPasswordScreen() {
 
                 {/* Back to Login */}
                 <Link href="../(auth)/login" asChild>
-                  <TouchableOpacity className="bg-white border border-gray-200 rounded-2xl py-4">
-                    <Text className="text-gray-700 text-center text-base font-semibold">
+                  <TouchableOpacity className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl py-4">
+                    <Text className="text-gray-700 dark:text-gray-100 text-center text-base font-semibold">
                       Back to Login
                     </Text>
                   </TouchableOpacity>
@@ -259,7 +262,7 @@ export default function ForgotPasswordScreen() {
               </View>
             </BlurView>
           </Animated.View>
-          </ScrollView>
+          </KeyboardAwareScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </LinearGradient>

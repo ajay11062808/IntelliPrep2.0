@@ -193,12 +193,12 @@ export default function NotesScreen() {
                 </Text>
               </View>
             </View>
-            <TouchableOpacity
+            {/* <TouchableOpacity
               onPress={() => handleDeleteNote(item.id, item.title)}
-              className="w-8 h-8 rounded-full bg-red-100 items-center justify-center"
+              className="w-7 h-7 rounded-full bg-red-100 items-center justify-center"
             >
-              <Ionicons name="trash-outline" size={16} color="#EF4444" />
-            </TouchableOpacity>
+              <Ionicons name="trash-outline" size={18} color="#EF4444" />
+            </TouchableOpacity> */}
           </View>
 
           <Text className="text-gray-700 text-base leading-6" numberOfLines={3}>
@@ -306,8 +306,8 @@ export default function NotesScreen() {
       >
         <Ionicons name="document-text-outline" size={60} color="#6366F1" />
       </LinearGradient>
-      <Text className="text-2xl font-bold text-gray-800 mb-3 text-center">No Notes Yet</Text>
-      <Text className="text-gray-500 text-center text-base leading-6 mb-8">
+      <Text className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-3 text-center">No Notes Yet</Text>
+      <Text className="text-gray-500 dark:text-gray-400 text-center text-base leading-6 mb-8">
         Start creating notes to organize your thoughts, calculations, and interview transcripts
       </Text>
       <TouchableOpacity
@@ -375,10 +375,10 @@ export default function NotesScreen() {
           {renderCategoryFilter()}
 
           {/* Notes List */}
-          <View className="flex-1 bg-gray-50 rounded-t-3xl pt-6">
+          <View className="flex-1 bg-gray-50 dark:bg-gray-900 rounded-t-3xl pt-6">
             {loading ? (
               <View className="flex-1 justify-center items-center">
-                <Text className="text-gray-500 text-lg">Loading notes...</Text>
+                <Text className="text-gray-500 dark:text-gray-400 text-lg">Loading notes...</Text>
               </View>
             ) : filteredNotes.length === 0 ? (
               renderEmptyState()

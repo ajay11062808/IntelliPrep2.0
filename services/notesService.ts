@@ -148,7 +148,6 @@ export class NotesService {
       }
 
       let result: string
-
       if (action === "summarize") {
         result = await AIService.summarizeText(content)
       } else {

@@ -1,7 +1,55 @@
 import { GoogleGenerativeAI } from "@google/generative-ai"
+import * as SecureStore from "expo-secure-store"
+import { supabase } from "../config/supabase"
 
-// Initialize Gemini AI
-const genAI = new GoogleGenerativeAI(process.env.EXPO_PUBLIC_GEMINI_API_KEY || "")
+// Initialize Gemini AI with dynamic key selection
+let genAI = new GoogleGenerativeAI(process.env.EXPO_PUBLIC_GEMINI_API_KEY || "")
+
+async function getEffectiveGeminiKey(): Promise<string | null> {
+  // 1) If user stored a local key, prefer it exclusively when flagged in profile
+  try {
+    const { data: auth } = await supabase.auth.getUser()
+    const userId = auth.user?.id
+    if (userId) {
+      const { data: profile } = await supabase.from("profiles").select("has_gemini_key").eq("id", userId).single()
+      if (profile?.has_gemini_key) {
+        const localKey = await SecureStore.getItemAsync("gemini_api_key")
+        if (localKey && localKey.trim().length > 10) {
+          return localKey
+        }
+      }
+    }
+  } catch {}
+  // 2) Otherwise use the public key
+  if (process.env.EXPO_PUBLIC_GEMINI_API_KEY) return process.env.EXPO_PUBLIC_GEMINI_API_KEY
+  return null
+}
+
+async function useFreshGenAI(): Promise<GoogleGenerativeAI> {
+  const key = await getEffectiveGeminiKey()
+  if (!key) {
+    throw new Error("GEMINI_KEY_MISSING")
+  }
+  return new GoogleGenerativeAI(key)
+}
+
+async function checkAndTrackUsageOrThrow(): Promise<void> {
+  // Call Supabase RPC or edge function to validate and increment usage
+  const session = (await supabase.auth.getSession()).data.session
+  const { data, error } = await supabase.functions.invoke("track-ai", {
+    headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined,
+    body: { ping: true },
+  })
+  if (error) {
+    throw new Error((error as any)?.message || "AI usage error")
+  }
+  // Some drivers wrap response under 'data'
+  const res = (data && (data.status ? data : (data as any).data)) || data
+  if (!res || !res.status) throw new Error("AI_USAGE_ERROR: invalid_response")
+  if (res.status === "limit_exceeded") throw new Error("AI_LIMIT_EXCEEDED")
+  if (res.status === "unauthorized") throw new Error("AI_USAGE_ERROR: unauthorized")
+  if (res.status === "error") throw new Error(`AI_USAGE_ERROR: ${res.error || "unknown"}`)
+}
 // const genAI = new GoogleGenerativeAI(EXPO_PUBLIC_GEMINI_API_KEY)
 
 export class AIService {
@@ -20,14 +68,13 @@ export class AIService {
   // Enhanced Note AI Functions
   static async summarizeText(text: string): Promise<string> {
     try {
-      if (!process.env.EXPO_PUBLIC_GEMINI_API_KEY) {
-        throw new Error("Gemini API key not configured")
-      }
+      await checkAndTrackUsageOrThrow()
+      const client = await useFreshGenAI()
 
       console.log("Summarizing text with Gemini...")
       const prompt = `Please provide a concise summary of the following text. Keep it under 100 words and focus on the key points:\n\n${text}`
 
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" })
+      const model = client.getGenerativeModel({ model: "gemini-2.0-flash" })
       const result = await model.generateContent(prompt)
       const response = await result.response
       const summary = response.text()
@@ -35,6 +82,12 @@ export class AIService {
       console.log("Summary generated successfully")
       return summary.trim()
     } catch (error) {
+      if ((error as any)?.message === "AI_LIMIT_EXCEEDED") {
+        throw error
+      }
+      if ((error as any)?.message === "GEMINI_KEY_MISSING") {
+        throw new Error("Gemini API key not configured")
+      }
       console.error("Summarization error:", error)
       // Fallback to simple extractive summary
       const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 0)
@@ -45,19 +98,24 @@ export class AIService {
 
   static async expandText(text: string): Promise<string> {
     try {
-      if (!process.env.EXPO_PUBLIC_GEMINI_API_KEY) {
-        throw new Error("Gemini API key not configured")
-      }
+      await checkAndTrackUsageOrThrow()
+      const client = await useFreshGenAI()
 
       const prompt = `Please expand on the following text by adding more detail, context, and examples while maintaining the same tone and style:\n\n${text}`
 
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" })
+      const model = client.getGenerativeModel({ model: "gemini-2.0-flash" })
       const result = await model.generateContent(prompt)
       const response = await result.response
       const expandedText = response.text()
 
       return expandedText.trim()
     } catch (error) {
+      if ((error as any)?.message === "AI_LIMIT_EXCEEDED") {
+        throw error
+      }
+      if ((error as any)?.message === "GEMINI_KEY_MISSING") {
+        throw new Error("Gemini API key not configured")
+      }
       console.error("Text expansion error:", error)
       throw new Error("Failed to expand text")
     }
@@ -66,9 +124,8 @@ export class AIService {
   // Enhanced text processing with Gemini
   static async enhanceNote(text: string, type: "grammar" | "expand" | "simplify"): Promise<string> {
     try {
-      if (!process.env.EXPO_PUBLIC_GEMINI_API_KEY) {
-        throw new Error("Gemini API key not configured")
-      }
+      await checkAndTrackUsageOrThrow()
+      const client = await useFreshGenAI()
 
       let prompt = ""
       switch (type) {
@@ -83,11 +140,17 @@ export class AIService {
           break
       }
 
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" })
+      const model = client.getGenerativeModel({ model: "gemini-2.0-flash" })
       const result = await model.generateContent(prompt)
       const response = await result.response
       return response.text().trim()
     } catch (error) {
+      if ((error as any)?.message === "AI_LIMIT_EXCEEDED") {
+        throw error
+      }
+      if ((error as any)?.message === "GEMINI_KEY_MISSING") {
+        throw new Error("Gemini API key not configured")
+      }
       console.error("Text enhancement error:", error)
       throw new Error("Failed to enhance text")
     }
@@ -100,9 +163,8 @@ export class AIService {
     count: number,
   ): Promise<{ questions: any[] }> {
     try {
-      if (!process.env.EXPO_PUBLIC_GEMINI_API_KEY) {
-        throw new Error("Gemini API key not configured")
-      }
+      await checkAndTrackUsageOrThrow()
+      const client = await useFreshGenAI()
 
       const prompt = `Generate ${count} ${difficulty} level ${category} interview questions. 
       Each question should be realistic, professional, and appropriate for the difficulty level.
@@ -128,7 +190,7 @@ export class AIService {
       
       Return only the JSON array, no additional text.`
 
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" })
+      const model = client.getGenerativeModel({ model: "gemini-2.0-flash" })
       const result = await model.generateContent(prompt)
       const response = await result.response
       const questionsText = response.text()
@@ -169,9 +231,8 @@ export class AIService {
     answer: string,
   ): Promise<{ score: number; feedback: string }> {
     try {
-      if (!process.env.EXPO_PUBLIC_GEMINI_API_KEY) {
-        throw new Error("Gemini API key not configured")
-      }
+      await checkAndTrackUsageOrThrow()
+      const client = await useFreshGenAI()
 
       const prompt = `Evaluate this interview response on a scale of 1-10 and provide constructive feedback.
 
@@ -194,7 +255,7 @@ Provide your response in JSON format with:
 
 Be encouraging but honest in your evaluation. Return only the JSON, no additional text.`
 
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" })
+      const model = client.getGenerativeModel({ model: "gemini-2.0-flash" })
       const result = await model.generateContent(prompt)
       const response = await result.response
       const evaluationText = response.text()

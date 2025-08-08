@@ -6,19 +6,20 @@ import { LinearGradient } from "expo-linear-gradient"
 import { Link } from "expo-router"
 import { useEffect, useRef, useState } from "react"
 import {
-    ActivityIndicator,
-    Alert,
-    Animated,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Animated,
+  KeyboardAvoidingView,
+  Platform,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from "react-native"
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { useAuth } from "../../constants/AuthContext"
+
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("")
@@ -93,15 +94,17 @@ export default function LoginScreen() {
     <LinearGradient colors={["#667eea", "#764ba2", "#f093fb"]} style={{ flex: 1 }}>
       <SafeAreaView className="flex-1">
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
           className="flex-1"
-          keyboardVerticalOffset={Platform.OS === "ios" ? 12 : 0}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
         >
-          <ScrollView
-            className="flex-1 px-8"
-            contentContainerStyle={{ flexGrow: 1, justifyContent: "center", paddingBottom: 24 }}
-            keyboardShouldPersistTaps="handled"
+          <KeyboardAwareScrollView
+            enableOnAndroid
+            extraScrollHeight={20}
+            extraHeight={Platform.OS === "android" ? 100 : 0}
+            keyboardShouldPersistTaps="always"
             showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ flexGrow: 1, paddingVertical: 24, paddingHorizontal: 32 }}
           >
           {/* Header */}
           <Animated.View
@@ -111,7 +114,7 @@ export default function LoginScreen() {
             }}
             className="items-center mb-12"
           >
-            <View className="w-20 h-20 bg-white/20 rounded-full items-center justify-center mb-4">
+            <View className="w-20 h-20 bg-white/20 dark:bg-gray-800 rounded-full items-center justify-center mb-4">
               <Ionicons name="school" size={40} color="white" />
             </View>
             <Text className="text-4xl font-bold text-white mb-2">IntelliPrep</Text>
@@ -126,15 +129,15 @@ export default function LoginScreen() {
             }}
           >
             <BlurView intensity={20} tint="light" style={{ borderRadius: 25, overflow: "hidden" }}>
-              <View className="bg-white/90 p-8 rounded-3xl shadow-2xl">
-                <Text className="text-2xl font-bold text-gray-800 mb-6 text-center">Sign In</Text>
+              <View className="bg-white/90 dark:bg-gray-800 p-8 rounded-3xl shadow-2xl">
+                <Text className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6 text-center">Sign In</Text>
 
                 {/* Email Input */}
                 <View className="mb-6">
-                  <View className="flex-row items-center bg-white/50 rounded-2xl px-4 py-3 border border-white/30">
+                  <View className="flex-row items-center bg-white/50 dark:bg-gray-800 rounded-2xl px-4 py-3 border border-white/30">
                     <Ionicons name="mail" size={20} color="#667eea" />
                     <TextInput
-                      className="flex-1 ml-3 text-gray-800 text-base"
+                      className="flex-1 ml-3 text-gray-800 dark:text-gray-100 text-base"
                       placeholder="Email address"
                       placeholderTextColor="#9CA3AF"
                       value={email}
@@ -149,10 +152,10 @@ export default function LoginScreen() {
 
                 {/* Password Input */}
                 <View className="mb-6">
-                  <View className="flex-row items-center bg-white/50 rounded-2xl px-4 py-3 border border-white/30">
+                  <View className="flex-row items-center bg-white/50 dark:bg-gray-800 rounded-2xl px-4 py-3 border border-white/30">
                     <Ionicons name="lock-closed" size={20} color="#667eea" />
                     <TextInput
-                      className="flex-1 ml-3 text-gray-800 text-base"
+                      className="flex-1 ml-3 text-gray-800 dark:text-gray-100 text-base"
                       placeholder="Password"
                       placeholderTextColor="#9CA3AF"
                       value={password}
@@ -220,8 +223,8 @@ export default function LoginScreen() {
 
                 {/* Sign Up Link */}
                 <Link href="../(auth)/register" asChild>
-                  <TouchableOpacity className="bg-white border border-gray-200 rounded-2xl py-4">
-                    <Text className="text-gray-700 text-center text-base font-semibold">
+                  <TouchableOpacity className="bg-white dark:bg-gray-800 border border-gray-200 rounded-2xl py-4">
+                    <Text className="text-gray-700 dark:text-gray-100 text-center text-base font-semibold">
                       Create new account
                     </Text>
                   </TouchableOpacity>
@@ -229,7 +232,7 @@ export default function LoginScreen() {
               </View>
             </BlurView>
           </Animated.View>
-          </ScrollView>
+          </KeyboardAwareScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </LinearGradient>

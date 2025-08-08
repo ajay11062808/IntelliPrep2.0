@@ -6,15 +6,16 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from "react";
 import 'react-native-reanimated';
-import { ErrorBoundary } from '../components/ErrorBoundary'; // adjust path if needed
 import { AuthProvider } from "../constants/AuthContext";
+import { ThemePreferenceProvider, useThemePreference } from "../constants/themeContext";
 import '../globals.css';
 // Prevent the splash screen from auto-hiding before asset loading is complete
 SplashScreen.preventAutoHideAsync()
 
-export default function RootLayout() {
+function RootTree() {
   console.log("App layout loaded")
   const colorScheme = useColorScheme();
+  const { themeMode } = useThemePreference()
   const [loaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
   })
@@ -29,10 +30,9 @@ export default function RootLayout() {
     return null
   }
 
+  const resolved = themeMode === 'system' ? colorScheme : themeMode
   return (
-    <ErrorBoundary>
-    <AuthProvider>
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={resolved === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -52,9 +52,17 @@ export default function RootLayout() {
         />
         <Stack.Screen name="+not-found" />
       </Stack>
-      <StatusBar style="auto" />
+      <StatusBar style={resolved === 'dark' ? "light" : "dark"} />
     </ThemeProvider>
-    </AuthProvider>
-    </ErrorBoundary>
   );
+}
+
+export default function RootLayout() {
+  return (
+    <AuthProvider>
+      <ThemePreferenceProvider>
+        <RootTree />
+      </ThemePreferenceProvider>
+    </AuthProvider>
+  )
 }

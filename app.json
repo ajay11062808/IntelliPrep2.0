@@ -20,6 +20,7 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
+      "softwareKeyboardLayoutMode": "resize",
       "package": "com.ajay1106.intelliprep20",
       "permissions": [
         "android.permission.RECORD_AUDIO",

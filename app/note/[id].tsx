@@ -8,10 +8,12 @@ import { useCallback, useEffect, useState } from "react"
 import {
   ActivityIndicator,
   Alert,
+  BackHandler,
   KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
+  Share,
   Text,
   TextInput,
   TouchableOpacity,
@@ -22,6 +24,7 @@ import AudioPermissionRequest from "../../components/AudioPermissionRequest"
 import ColorThemeSelector from "../../components/ColorThemeSelector"
 import MarkdownPreview from "../../components/MarkdownPreview"
 import TagSelector from "../../components/TagSelector"
+import { UpgradeDialog } from "../../components/UpgradeDialog"
 import VoiceRecorder from "../../components/VoiceRecorder"
 import { useAuth } from "../../constants/AuthContext"
 import type { VoiceData } from "../../constants/types"
@@ -37,6 +40,7 @@ export default function NoteDetailScreen() {
     fetchNote,
     createNote,
     updateNote,
+    deleteNote,
     enhanceNote,
     setCurrentNote,
     clearError,
@@ -56,6 +60,7 @@ export default function NoteDetailScreen() {
   const [showMarkdownPreview, setShowMarkdownPreview] = useState(false)
   const [showPermissionRequest, setShowPermissionRequest] = useState(false)
   const [voiceData, setVoiceData] = useState<VoiceData | undefined>(undefined)
+  const [upgradeVisible, setUpgradeVisible] = useState(false)
   
   // New state for dropdowns
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false)
@@ -205,10 +210,52 @@ export default function NoteDetailScreen() {
       setShowAiResults(true)
       Alert.alert("Success", `Note ${action === "summarize" ? "summarized" : "expanded"} successfully!`)
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to enhance note")
+      const msg = String(error?.message || "")
+      if (msg.includes("AI_LIMIT_EXCEEDED")) {
+        // Show upgrade dialog via local state flag
+        setUpgradeVisible(true)
+      } else if (msg.includes("Gemini API key not configured")) {
+        setUpgradeVisible(true)
+      } else {
+        Alert.alert("Error", msg || "Failed to enhance note")
+      }
     } finally {
       setAiLoading(null)
     }
+  }
+
+  const handleShare = async () => {
+    try {
+      const parts: string[] = []
+      if (title?.trim()) parts.push(`Title: ${title.trim()}`)
+      if (content?.trim()) parts.push(content.trim())
+      if (currentNote?.ai_summary) parts.push(`\n\nSummary:\n${currentNote.ai_summary}`)
+      if (tags?.length) parts.push(`\n\nTags: ${tags.join(", ")}`)
+      const message = parts.join("\n\n") || "(Empty note)"
+      await Share.share({
+        title: title || "My Note",
+        message,
+      })
+    } catch (e) {
+      Alert.alert("Error", "Unable to share this note right now.")
+    }
+  }
+
+  const handleDelete = () => {
+    if (!isEditing || !id) return
+    Alert.alert("Delete Note", "Are you sure you want to delete this note?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await deleteNote(id)
+            router.back()
+          } catch {}
+        },
+      },
+    ])
   }
 
   const handleVoiceTranscriptionComplete = (newVoiceData: VoiceData) => {
@@ -221,10 +268,11 @@ export default function NoteDetailScreen() {
     if (hasUnsavedChanges) {
       Alert.alert(
         "Unsaved Changes",
-        "You have unsaved changes. Are you sure you want to leave?",
+        "You have unsaved changes. Would you like to save before leaving?",
         [
           { text: "Cancel", style: "cancel" },
-          { text: "Leave", onPress: () => router.back() },
+          { text: "Discard", style: "destructive", onPress: () => router.back() },
+          { text: "Save", onPress: () => handleSave() },
         ]
       )
     } else {
@@ -265,6 +313,16 @@ export default function NoteDetailScreen() {
     setShowColorDropdown(false)
   }
 
+  // Intercept Android hardware back to show the same prompt when there are unsaved changes
+  useEffect(() => {
+    const onBackPress = () => {
+      handleBack()
+      return true // prevent default back action; we handle it
+    }
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress)
+    return () => sub.remove()
+  }, [hasUnsavedChanges, title, content, markdownContent, category, tags, colorTheme, voiceData, saving])
+
   // Show loading only when editing and not initialized
   if (loading && isEditing && !isInitialized) {
     return (
@@ -301,36 +359,42 @@ export default function NoteDetailScreen() {
               >
                 <Ionicons name="eye" size={20} color="white" />
               </TouchableOpacity>
-              <TouchableOpacity
+              {/* <TouchableOpacity
                 onPress={() => setShowPermissionRequest(true)}
                 className="w-10 h-10 rounded-full bg-white/20 items-center justify-center"
               >
                 <Ionicons name="mic" size={20} color="white" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleSave}
-                disabled={saving || !title.trim()}
-                className={`w-10 h-10 rounded-full bg-white/20 items-center justify-center ${
-                  saving || !title.trim() ? "opacity-50" : ""
-                }`}
+              </TouchableOpacity> */}
+              {/* <TouchableOpacity
+                onPress={handleShare}
+                className="w-10 h-10 rounded-full bg-white/20 items-center justify-center"
               >
-                {saving ? (
-                  <ActivityIndicator size="small" color="white" />
-                ) : (
-                  <Ionicons name="save" size={24} color="white" />
-                )}
-              </TouchableOpacity>
+                <Ionicons name="share-social" size={20} color="white" />
+              </TouchableOpacity> */}
+            <TouchableOpacity
+              onPress={handleSave}
+              disabled={saving || !title.trim()}
+              className={`w-10 h-10 rounded-full bg-white/20 items-center justify-center ${
+                saving || !title.trim() ? "opacity-50" : ""
+              }`}
+            >
+              {saving ? (
+                <ActivityIndicator size="small" color="white" />
+              ) : (
+                <Ionicons name="save" size={24} color="white" />
+              )}
+            </TouchableOpacity>
             </View>
           </View>
 
           {/* Content Area */}
-          <View className="flex-1 bg-gray-50 rounded-t-3xl">
-            <ScrollView className="flex-1 p-6" showsVerticalScrollIndicator={false}>
+          <View className="flex-1 bg-gray-50 dark:bg-gray-900 rounded-t-3xl">
+            <ScrollView className="flex-1 p-6" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
               {/* Title Input */}
               <View className="mb-6">
                 <BlurView intensity={20} tint="light" style={{ borderRadius: 15, overflow: "hidden" }}>
                   <TextInput
-                    className="bg-white/30 p-4 text-xl font-semibold text-gray-800"
+                    className="bg-gray-100 dark:bg-gray-800/40 p-4 text-xl font-semibold text-gray-800 dark:text-gray-100"
                     placeholder="Note title..."
                     placeholderTextColor="rgba(0,0,0,0.4)"
                     value={title}
@@ -347,17 +411,17 @@ export default function NoteDetailScreen() {
                   {/* Category Dropdown */}
                   <TouchableOpacity
                     onPress={() => setShowCategoryDropdown(!showCategoryDropdown)}
-                    className="flex-1 mr-2"
+                    className="flex-1 mr-2 dark:bg-gray-800/40"
                   >
                     <BlurView intensity={20} tint="light" style={{ borderRadius: 12, overflow: "hidden" }}>
-                      <View className="flex-row items-center justify-between p-3 bg-white/30">
+                      <View className="flex-row items-center justify-between p-3 bg-gray-100 dark:bg-gray-800/40">
                         <View className="flex-row items-center">
                           <Ionicons 
                             name={categories.find(c => c.id === category)?.icon as any} 
                             size={18} 
                             color={categories.find(c => c.id === category)?.color} 
                           />
-                          <Text className="ml-2 font-semibold text-gray-700">
+                          <Text className="ml-2 font-semibold bg-white/30 dark:bg-gray-800/40 text-gray-700 dark:text-gray-100">
                             {categories.find(c => c.id === category)?.name}
                           </Text>
                         </View>
@@ -390,15 +454,15 @@ export default function NoteDetailScreen() {
 
                 {/* Category Dropdown */}
                 {showCategoryDropdown && (
-                  <View className="mt-2 bg-white rounded-lg shadow-lg">
+                  <View className="mt-2 bg-white rounded-lg shadow-lg dark:bg-gray-800">
                     {categories.map((cat) => (
                       <TouchableOpacity
                         key={cat.id}
                         onPress={() => handleCategoryChange(cat.id)}
-                        className="flex-row items-center p-3 border-b border-gray-100"
+                        className="flex-row items-center p-3 border-b border-gray-100 dark:border-gray-700"
                       >
                         <Ionicons name={cat.icon as any} size={18} color={cat.color} />
-                        <Text className="ml-3 font-medium text-gray-700">{cat.name}</Text>
+                        <Text className="ml-3 font-medium text-gray-700 dark:text-gray-100">{cat.name}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -406,27 +470,27 @@ export default function NoteDetailScreen() {
 
                 {/* AI Enhancement Dropdown */}
                 {showAiDropdown && (
-                  <View className="mt-2 bg-white rounded-lg shadow-lg">
-                    <View className="p-3 border-b border-gray-100 bg-purple-50">
-                      <Text className="font-semibold text-purple-700">AI Enhancement Tools</Text>
-                      <Text className="text-sm text-purple-600">Enhance your note with AI</Text>
+                  <View className="mt-2 bg-white rounded-lg shadow-lg dark:bg-gray-800">
+                    <View className="p-3 border-b border-gray-100 dark:border-gray-700 bg-purple-50 dark:bg-purple-800">
+                      <Text className="font-semibold text-purple-700 dark:text-purple-100">AI Enhancement Tools</Text>
+                      <Text className="text-sm text-purple-600 dark:text-purple-400">Enhance your note with AI</Text>
                     </View>
                     <TouchableOpacity
                       onPress={() => handleAiEnhancement("summarize")}
-                      className="flex-row items-center p-3 border-b border-gray-100"
+                      className="flex-row items-center p-3 border-b border-gray-100 dark:border-gray-700"
                       disabled={aiLoading === "summarize"}
                     >
                       <Ionicons name="text" size={18} color="#10B981" />
-                      <Text className="ml-3 font-medium text-gray-700">Summarize Content</Text>
+                      <Text className="ml-3 font-medium text-gray-700 dark:text-gray-100">Summarize Content</Text>
                       {aiLoading === "summarize" && <ActivityIndicator size="small" color="#10B981" className="ml-auto" />}
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={() => handleAiEnhancement("expand")}
-                      className="flex-row items-center p-3"
+                      className="flex-row items-center p-3 border-b border-gray-100 dark:border-gray-700"
                       disabled={aiLoading === "expand"}
                     >
                       <Ionicons name="expand" size={18} color="#F59E0B" />
-                      <Text className="ml-3 font-medium text-gray-700">Expand Content</Text>
+                      <Text className="ml-3 font-medium text-gray-700 dark:text-gray-100">Expand Content</Text>
                       {aiLoading === "expand" && <ActivityIndicator size="small" color="#F59E0B" className="ml-auto" />}
                     </TouchableOpacity>
                   </View>
@@ -437,7 +501,7 @@ export default function NoteDetailScreen() {
               <View className="mb-6">
                 <BlurView intensity={20} tint="light" style={{ borderRadius: 15, overflow: "hidden" }}>
                   <TextInput
-                    className="bg-white/30 p-4 text-gray-800 min-h-[200px]"
+                    className="bg-gray-200 dark:bg-gray-800/40 p-4 text-gray-800 dark:text-gray-100 min-h-[200px]"
                     placeholder="Start writing your note..."
                     placeholderTextColor="rgba(0,0,0,0.4)"
                     value={content}
@@ -450,56 +514,56 @@ export default function NoteDetailScreen() {
                 {/* Quick AI Enhancement Button - Always visible when there's content */}
                 {content.trim().length > 10 && (
                   <View className="mt-3 flex-row space-x-2">
-                    <TouchableOpacity
+                        <TouchableOpacity
                       onPress={() => handleAiEnhancement("summarize")}
                       disabled={aiLoading === "summarize"}
-                      className="flex-1"
-                    >
-                      <LinearGradient
-                        colors={aiLoading === "summarize" ? ["#9CA3AF", "#6B7280"] : ["#10B981", "#059669"]}
+                          className="flex-1"
+                        >
+                          <LinearGradient
+                            colors={aiLoading === "summarize" ? ["#9CA3AF", "#6B7280"] : ["#10B981", "#059669"]}
                         style={{ borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12 }}
                       >
                         <View className="flex-row items-center justify-center">
-                          {aiLoading === "summarize" ? (
-                            <ActivityIndicator size="small" color="white" />
-                          ) : (
+                            {aiLoading === "summarize" ? (
+                              <ActivityIndicator size="small" color="white" />
+                            ) : (
                             <Ionicons name="text" size={16} color="white" />
-                          )}
+                            )}
                           <Text className="text-white font-semibold ml-2 text-sm">
                             {aiLoading === "summarize" ? "Summarizing..." : "Summarize"}
                           </Text>
                         </View>
-                      </LinearGradient>
-                    </TouchableOpacity>
-                    
-                    <TouchableOpacity
+                          </LinearGradient>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
                       onPress={() => handleAiEnhancement("expand")}
                       disabled={aiLoading === "expand"}
-                      className="flex-1"
-                    >
-                      <LinearGradient
-                        colors={aiLoading === "expand" ? ["#9CA3AF", "#6B7280"] : ["#F59E0B", "#D97706"]}
+                          className="flex-1"
+                        >
+                          <LinearGradient
+                            colors={aiLoading === "expand" ? ["#9CA3AF", "#6B7280"] : ["#F59E0B", "#D97706"]}
                         style={{ borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12 }}
                       >
                         <View className="flex-row items-center justify-center">
-                          {aiLoading === "expand" ? (
-                            <ActivityIndicator size="small" color="white" />
-                          ) : (
+                            {aiLoading === "expand" ? (
+                              <ActivityIndicator size="small" color="white" />
+                            ) : (
                             <Ionicons name="expand" size={16} color="white" />
-                          )}
+                            )}
                           <Text className="text-white font-semibold ml-2 text-sm">
                             {aiLoading === "expand" ? "Expanding..." : "Expand"}
                           </Text>
                         </View>
-                      </LinearGradient>
-                    </TouchableOpacity>
-                  </View>
+                          </LinearGradient>
+                        </TouchableOpacity>
+                      </View>
                 )}
               </View>
 
               {/* Additional Features Section */}
               <View className="mb-6">
-                <Text className="text-lg font-bold text-gray-800 mb-4">Additional Features</Text>
+                <Text className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">Additional Features</Text>
                 
                 {/* Tags */}
                 <TouchableOpacity
@@ -507,10 +571,10 @@ export default function NoteDetailScreen() {
                   className="mb-3"
                 >
                   <BlurView intensity={20} tint="light" style={{ borderRadius: 12, overflow: "hidden" }}>
-                    <View className="flex-row items-center justify-between p-3 bg-white/30">
+                    <View className="flex-row items-center justify-between p-3 bg-gray-100 dark:bg-gray-800/40">
                       <View className="flex-row items-center">
                         <Ionicons name="pricetag" size={18} color="#3B82F6" />
-                        <Text className="ml-2 font-semibold text-gray-700">
+                        <Text className="ml-2 font-semibold text-gray-700 dark:text-gray-100">
                           Tags {tags.length > 0 && `(${tags.length})`}
                         </Text>
                       </View>
@@ -525,10 +589,10 @@ export default function NoteDetailScreen() {
                   className="mb-3"
                 >
                   <BlurView intensity={20} tint="light" style={{ borderRadius: 12, overflow: "hidden" }}>
-                    <View className="flex-row items-center justify-between p-3 bg-white/30">
+                    <View className="flex-row items-center justify-between p-3 bg-gray-100 dark:bg-gray-800/40">
                       <View className="flex-row items-center">
                         <Ionicons name="color-palette" size={18} color={colorTheme} />
-                        <Text className="ml-2 font-semibold text-gray-700">Color Theme</Text>
+                        <Text className="ml-2 font-semibold text-gray-700 dark:text-gray-100">Color Theme</Text>
                       </View>
                       <Ionicons name="chevron-down" size={16} color="#6B7280" />
                     </View>
@@ -541,10 +605,10 @@ export default function NoteDetailScreen() {
                   className="mb-3"
                 >
                   <BlurView intensity={20} tint="light" style={{ borderRadius: 12, overflow: "hidden" }}>
-                    <View className="flex-row items-center justify-between p-3 bg-white/30">
+                    <View className="flex-row items-center justify-between p-3 bg-gray-100 dark:bg-gray-800/40">
                       <View className="flex-row items-center">
                         <Ionicons name="mic" size={18} color="#EF4444" />
-                        <Text className="ml-2 font-semibold text-gray-700">Voice Recording</Text>
+                        <Text className="ml-2 font-semibold text-gray-700 dark:text-gray-100">Voice Recording</Text>
                       </View>
                       <Ionicons name="chevron-forward" size={16} color="#6B7280" />
                     </View>
@@ -555,8 +619,8 @@ export default function NoteDetailScreen() {
                 {showTagsDropdown && (
                   <View className="mt-2 bg-white rounded-lg shadow-lg p-4">
                     <TagSelector tags={tags} onTagsChange={handleTagsChange} />
-                  </View>
-                )}
+                </View>
+              )}
 
                 {/* Color Theme Dropdown */}
                 {showColorDropdown && (
@@ -591,9 +655,9 @@ export default function NoteDetailScreen() {
                             <Text className="text-sm font-semibold text-amber-600 ml-2">Expanded:</Text>
                           </View>
                           <Text className="text-gray-700 bg-amber-50 p-3 rounded-lg">{currentNote.ai_expanded}</Text>
-                        </View>
-                      )}
-                    </View>
+                </View>
+              )}
+                      </View>
                   </BlurView>
                 </View>
               )}
@@ -635,6 +699,60 @@ export default function NoteDetailScreen() {
           onPermissionDenied={() => setShowPermissionRequest(false)}
           onClose={() => setShowPermissionRequest(false)}
         />
+
+        {/* Upgrade / API Key Dialog */}
+        <UpgradeDialog
+          visible={upgradeVisible}
+          onClose={() => setUpgradeVisible(false)}
+          onGoPremium={() => {
+            setUpgradeVisible(false)
+            Alert.alert("Premium", "Contact support to enable premium or integrate a billing page.")
+          }}
+          onEnterKey={() => {
+            setUpgradeVisible(false)
+            // Navigate user to profile to enter key
+            router.push("/(tabs)/profile")
+          }}
+        />
+
+        {/* Bottom Action Bar */}
+        <View className="absolute left-0 right-0 bottom-0">
+          <BlurView intensity={30} tint="light" style={{ paddingHorizontal: 24, paddingBottom: 24, paddingTop: 12 }}>
+            <View className="flex-row items-center">
+              {isEditing && (
+                <TouchableOpacity
+                  onPress={handleDelete}
+                  className="flex-row items-center px-4 py-3 rounded-full bg-red-500/90"
+                >
+                  <Ionicons name="trash" size={18} color="white" />
+                  <Text className="text-white font-semibold ml-2">Delete</Text>
+                </TouchableOpacity>
+              )}
+              <View className="flex-1" />
+              <TouchableOpacity
+                onPress={handleShare}
+                className="flex-row items-center px-4 py-3 rounded-full bg-gray-100 dark:bg-gray-800 mr-2"
+              >
+                <Ionicons name="share-social" size={18} color="#6B7280" />
+                <Text className="text-gray-900 dark:text-gray-100 font-semibold ml-2">Share</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleSave}
+                disabled={saving || !title.trim()}
+                className={`flex-row items-center px-4 py-3 rounded-full ${
+                  saving || !title.trim() ? "bg-indigo-400/60" : "bg-indigo-600"
+                }`}
+              >
+                {saving ? (
+                  <ActivityIndicator size="small" color="white" />
+                ) : (
+                  <Ionicons name="save" size={18} color="white" />
+                )}
+                <Text className="text-white font-semibold ml-2">{saving ? "Saving..." : "Save"}</Text>
+              </TouchableOpacity>
+            </View>
+          </BlurView>
+        </View>
       </SafeAreaView>
     </LinearGradient>
   )

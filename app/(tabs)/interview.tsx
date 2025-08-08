@@ -161,17 +161,63 @@ export default function InterviewScreen() {
   )
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
-      <View className="px-5 py-4 bg-white border-b border-gray-200">
-        <Text className="text-2xl font-bold text-gray-800">Mock Interviews</Text>
+    <SafeAreaView className="flex-1 bg-gray-50 dark:bg-black">
+      <View className="px-5 py-4 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
+        <Text className="text-2xl font-bold text-gray-800 dark:text-gray-100">Mock Interviews</Text>
       </View>
 
       <FlatList
         data={interviews}
-        renderItem={renderInterviewItem}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            className="bg-white dark:bg-gray-900 p-4 rounded-lg mb-3 shadow-sm border border-gray-100 dark:border-gray-800"
+            onPress={() => router.push(`../interview/${item.id}`)}
+          >
+            <View className="flex-row justify-between items-center mb-2">
+              <Text className="text-lg font-semibold text-gray-800 dark:text-gray-100 flex-1" numberOfLines={1}>
+                {item.title}
+              </Text>
+              <TouchableOpacity onPress={() => handleDeleteInterview(item.id)} className="p-1">
+                <Ionicons name="trash" size={20} color="#EF4444" />
+              </TouchableOpacity>
+            </View>
+
+            <View className="flex-row justify-between items-center mb-2">
+              <Text className="text-sm text-gray-600 dark:text-gray-400">{item.questions.length} questions</Text>
+              <View className="px-2 py-1 rounded-full" style={{ backgroundColor: `${getStatusColor(item.status)}20` }}>
+                <Text className="text-xs font-semibold" style={{ color: getStatusColor(item.status) }}>
+                  {getStatusText(item.status)}
+                </Text>
+              </View>
+            </View>
+
+            {item.score && (
+              <View className="flex-row items-center mb-2">
+                <Text className="text-sm text-gray-600 dark:text-gray-400 mr-2">Score:</Text>
+                <Text
+                  className={`text-sm font-semibold ${
+                    item.score >= 8 ? "text-success-600" : item.score >= 6 ? "text-warning-600" : "text-error-600"
+                  }`}
+                >
+                  {item.score}/10
+                </Text>
+              </View>
+            )}
+
+            <Text className="text-xs text-gray-400">{new Date(item.created_at).toLocaleDateString()}</Text>
+          </TouchableOpacity>
+        )}
         keyExtractor={(item) => item.id}
         contentContainerStyle={interviews.length === 0 ? { flex: 1 } : { padding: 16 }}
-        ListEmptyComponent={renderEmptyState}
+        ListEmptyComponent={() => (
+          <View className="flex-1 justify-center items-center px-8">
+            <View className="bg-gray-100 dark:bg-gray-800 p-6 rounded-full mb-4">
+              <Ionicons name="mic" size={48} color="#9CA3AF" />
+            </View>
+            <Text className="text-xl font-semibold text-gray-400 dark:text-gray-500 mb-2">No interviews yet</Text>
+            <Text className="text-gray-300 dark:text-gray-500 text-center">Create your first AI mock interview to get started</Text>
+          </View>
+        )}
         showsVerticalScrollIndicator={false}
       />
 
@@ -184,19 +230,19 @@ export default function InterviewScreen() {
 
       {/* Create Interview Modal */}
       <Modal visible={showCreateModal} animationType="slide" presentationStyle="pageSheet">
-        <SafeAreaView className="flex-1 bg-white">
-          <View className="flex-row justify-between items-center px-5 py-4 border-b border-gray-200">
-            <Text className="text-xl font-semibold text-gray-800">Create Mock Interview</Text>
+        <SafeAreaView className="flex-1 bg-white dark:bg-gray-900">
+          <View className="flex-row justify-between items-center px-5 py-4 border-b border-gray-200 dark:border-gray-800">
+            <Text className="text-xl font-semibold text-gray-800 dark:text-gray-100">Create Mock Interview</Text>
             <TouchableOpacity onPress={() => setShowCreateModal(false)}>
-              <Ionicons name="close" size={24} color="#374151" />
+              <Ionicons name="close" size={24} color="#9CA3AF" />
             </TouchableOpacity>
           </View>
 
           <ScrollView className="flex-1 p-5">
             <View className="mb-6">
-              <Text className="text-lg font-semibold text-gray-800 mb-3">Interview Title</Text>
+              <Text className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">Interview Title</Text>
               <TextInput
-                className="bg-gray-50 p-4 rounded-lg border border-gray-200 text-gray-800"
+                className="bg-gray-50 dark:bg-gray-800 dark:text-gray-100 p-4 rounded-lg border border-gray-200 dark:border-gray-700"
                 value={newInterviewTitle}
                 onChangeText={setNewInterviewTitle}
                 placeholder="Enter interview title"
@@ -204,7 +250,7 @@ export default function InterviewScreen() {
             </View>
 
             <View className="mb-6">
-              <Text className="text-lg font-semibold text-gray-800 mb-3">Category</Text>
+              <Text className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">Category</Text>
               <View className="flex-row flex-wrap gap-2">
                 {categories.map((category) => (
                   <TouchableOpacity
@@ -212,18 +258,18 @@ export default function InterviewScreen() {
                     className={`flex-row items-center px-3 py-2 rounded-lg border ${
                       selectedCategory === category.id
                         ? "bg-primary-500 border-primary-500"
-                        : "bg-gray-50 border-gray-200"
+                        : "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700"
                     }`}
                     onPress={() => setSelectedCategory(category.id)}
                   >
                     <Ionicons
                       name={category.icon as any}
                       size={16}
-                      color={selectedCategory === category.id ? "white" : "#6B7280"}
+                      color={selectedCategory === category.id ? "white" : "#9CA3AF"}
                     />
                     <Text
                       className={`ml-2 text-sm font-medium ${
-                        selectedCategory === category.id ? "text-white" : "text-gray-600"
+                        selectedCategory === category.id ? "text-white" : "text-gray-600 dark:text-gray-300"
                       }`}
                     >
                       {category.name}
@@ -234,20 +280,20 @@ export default function InterviewScreen() {
             </View>
 
             <View className="mb-6">
-              <Text className="text-lg font-semibold text-gray-800 mb-3">Difficulty</Text>
+              <Text className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">Difficulty</Text>
               <View className="flex-row gap-3">
                 {difficulties.map((difficulty) => (
                   <TouchableOpacity
                     key={difficulty.id}
                     className={`flex-1 py-3 rounded-lg border ${
-                      selectedDifficulty === difficulty.id ? "border-transparent" : "border-gray-200 bg-gray-50"
+                      selectedDifficulty === difficulty.id ? "border-transparent" : "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800"
                     }`}
                     style={selectedDifficulty === difficulty.id ? { backgroundColor: difficulty.color } : {}}
                     onPress={() => setSelectedDifficulty(difficulty.id)}
                   >
                     <Text
                       className={`text-center font-semibold ${
-                        selectedDifficulty === difficulty.id ? "text-white" : "text-gray-600"
+                        selectedDifficulty === difficulty.id ? "text-white" : "text-gray-600 dark:text-gray-300"
                       }`}
                     >
                       {difficulty.name}
@@ -258,19 +304,19 @@ export default function InterviewScreen() {
             </View>
 
             <View className="mb-8">
-              <Text className="text-lg font-semibold text-gray-800 mb-3">Number of Questions</Text>
+              <Text className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">Number of Questions</Text>
               <View className="flex-row gap-3">
                 {["3", "5", "7", "10"].map((count) => (
                   <TouchableOpacity
                     key={count}
                     className={`flex-1 py-3 rounded-lg border ${
-                      questionCount === count ? "bg-primary-500 border-primary-500" : "bg-gray-50 border-gray-200"
+                      questionCount === count ? "bg-primary-500 border-primary-500" : "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700"
                     }`}
                     onPress={() => setQuestionCount(count)}
                   >
                     <Text
                       className={`text-center font-semibold ${
-                        questionCount === count ? "text-white" : "text-gray-600"
+                        questionCount === count ? "text-white" : "text-gray-600 dark:text-gray-300"
                       }`}
                     >
                       {count}
