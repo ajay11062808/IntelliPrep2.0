@@ -22,6 +22,7 @@ import AudioPermissionRequest from "../../components/AudioPermissionRequest"
 import ColorThemeSelector from "../../components/ColorThemeSelector"
 import MarkdownPreview from "../../components/MarkdownPreview"
 import TagSelector from "../../components/TagSelector"
+import { UpgradeDialog } from "../../components/UpgradeDialog"
 import VoiceRecorder from "../../components/VoiceRecorder"
 import { useAuth } from "../../constants/AuthContext"
 import type { VoiceData } from "../../constants/types"
@@ -56,6 +57,7 @@ export default function NoteDetailScreen() {
   const [showMarkdownPreview, setShowMarkdownPreview] = useState(false)
   const [showPermissionRequest, setShowPermissionRequest] = useState(false)
   const [voiceData, setVoiceData] = useState<VoiceData | undefined>(undefined)
+  const [upgradeVisible, setUpgradeVisible] = useState(false)
   
   // New state for dropdowns
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false)
@@ -205,7 +207,15 @@ export default function NoteDetailScreen() {
       setShowAiResults(true)
       Alert.alert("Success", `Note ${action === "summarize" ? "summarized" : "expanded"} successfully!`)
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to enhance note")
+      const msg = String(error?.message || "")
+      if (msg.includes("AI_LIMIT_EXCEEDED")) {
+        // Show upgrade dialog via local state flag
+        setUpgradeVisible(true)
+      } else if (msg.includes("Gemini API key not configured")) {
+        setUpgradeVisible(true)
+      } else {
+        Alert.alert("Error", msg || "Failed to enhance note")
+      }
     } finally {
       setAiLoading(null)
     }
@@ -634,6 +644,21 @@ export default function NoteDetailScreen() {
           }}
           onPermissionDenied={() => setShowPermissionRequest(false)}
           onClose={() => setShowPermissionRequest(false)}
+        />
+
+        {/* Upgrade / API Key Dialog */}
+        <UpgradeDialog
+          visible={upgradeVisible}
+          onClose={() => setUpgradeVisible(false)}
+          onGoPremium={() => {
+            setUpgradeVisible(false)
+            Alert.alert("Premium", "Contact support to enable premium or integrate a billing page.")
+          }}
+          onEnterKey={() => {
+            setUpgradeVisible(false)
+            // Navigate user to profile to enter key
+            router.push("/(tabs)/profile")
+          }}
         />
       </SafeAreaView>
     </LinearGradient>

@@ -29,6 +29,7 @@
     "expo-linking": "~7.1.7",
     "expo-permissions": "^14.4.0",
     "expo-router": "~5.1.4",
+    "expo-secure-store": "~13.0.2",
     "expo-speech": "^13.1.7",
     "expo-splash-screen": "~0.30.10",
     "expo-status-bar": "~2.2.3",
@@ -47,6 +48,7 @@
     "react-native-url-polyfill": "^2.0.0",
     "react-native-web": "~0.20.0",
     "react-native-webview": "13.13.5",
+    "supabase": "^2.33.9",
     "zustand": "^5.0.6"
   },
   "devDependencies": {
