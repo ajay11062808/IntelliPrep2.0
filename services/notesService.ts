@@ -1,5 +1,5 @@
 import { supabase } from "../config/supabase"
-import type { CalculationData, InterviewData, Note } from "../constants/types"
+import type { CalculationData, InterviewData, Note, VoiceData } from "../constants/types"
 import { AIService } from "./aiService"
 
 export class NotesService {
@@ -52,6 +52,10 @@ export class NotesService {
     isInterviewTranscript = false,
     calculationData?: CalculationData,
     interviewData?: InterviewData,
+    markdownContent?: string,
+    tags?: string[],
+    colorTheme?: string,
+    voiceData?: VoiceData,
   ): Promise<Note> {
     try {
       if (!userId || !title.trim()) {
@@ -62,11 +66,16 @@ export class NotesService {
         user_id: userId,
         title: title.trim(),
         content: content.trim(),
+        markdown_content: markdownContent || null,
         category,
         is_calculation: isCalculation,
         is_interview_transcript: isInterviewTranscript,
+        is_voice_transcription: !!voiceData,
         calculation_data: calculationData || null,
         interview_data: interviewData || null,
+        voice_data: voiceData || null,
+        tags: tags || [],
+        color_theme: colorTheme || '#6366F1',
       }
 
       const { data, error } = await supabase.from("notes").insert(noteData).select().single()

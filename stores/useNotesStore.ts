@@ -1,5 +1,5 @@
 import { create } from "zustand"
-import type { CalculationData, InterviewData, Note } from "../constants/types"
+import type { CalculationData, InterviewData, Note, VoiceData } from "../constants/types"
 import { NotesService } from "../services/notesService"
 
 interface NotesState {
@@ -21,6 +21,10 @@ interface NotesState {
     isInterviewTranscript?: boolean,
     calculationData?: CalculationData,
     interviewData?: InterviewData,
+    markdownContent?: string,
+    tags?: string[],
+    colorTheme?: string,
+    voiceData?: VoiceData,
   ) => Promise<Note>
   updateNote: (noteId: string, updates: Partial<Note>) => Promise<void>
   deleteNote: (noteId: string) => Promise<void>
@@ -70,6 +74,10 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     isInterviewTranscript = false,
     calculationData?: CalculationData,
     interviewData?: InterviewData,
+    markdownContent?: string,
+    tags?: string[],
+    colorTheme?: string,
+    voiceData?: VoiceData,
   ) => {
     set({ saving: true, error: null })
     try {
@@ -82,6 +90,10 @@ export const useNotesStore = create<NotesState>((set, get) => ({
         isInterviewTranscript,
         calculationData,
         interviewData,
+        markdownContent,
+        tags,
+        colorTheme,
+        voiceData,
       )
 
       set((state) => ({

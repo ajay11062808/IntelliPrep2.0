@@ -36,8 +36,13 @@ export default function NotesScreen() {
     { id: "general", name: "General", icon: "document-text", color: "#10B981" },
     { id: "calculation", name: "Calculations", icon: "calculator", color: "#F59E0B" },
     { id: "interview", name: "Interviews", icon: "mic", color: "#EF4444" },
+    { id: "voice", name: "Voice", icon: "mic", color: "#10B981" },
   ]
-
+  useEffect(() => {
+    if (user) {
+      fetchNotes(user.id)
+    }
+  }, [user])
   // Refresh notes when screen comes into focus
   useFocusEffect(
     useCallback(() => {
@@ -101,7 +106,14 @@ export default function NotesScreen() {
     const matchesSearch =
       note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       note.content.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesCategory = selectedCategory === "all" || note.category === selectedCategory
+    
+    let matchesCategory = selectedCategory === "all" || note.category === selectedCategory
+    
+    // Special handling for voice category
+    if (selectedCategory === "voice") {
+      matchesCategory = note.is_voice_transcription === true
+    }
+    
     return matchesSearch && matchesCategory
   })
 
@@ -156,6 +168,8 @@ export default function NotesScreen() {
             shadowOpacity: 0.1,
             shadowRadius: 12,
             elevation: 8,
+            borderLeftWidth: 4,
+            borderLeftColor: item.color_theme || "#6366F1",
           }}
         >
           <View className="flex-row items-center justify-between mb-3">
@@ -191,20 +205,48 @@ export default function NotesScreen() {
             {item.content}
           </Text>
 
-          {(item.is_calculation || item.is_interview_transcript) && (
-            <View className="flex-row mt-3 space-x-2">
-              {item.is_calculation && (
-                <View className="bg-amber-100 px-3 py-1 rounded-full">
-                  <Text className="text-amber-700 text-xs font-medium">Calculation</Text>
+          {/* Tags Display */}
+          {item.tags && item.tags.length > 0 && (
+            <View className="flex-row flex-wrap mt-3 mb-2">
+              {item.tags.slice(0, 3).map((tag, tagIndex) => (
+                <View
+                  key={tagIndex}
+                  className="bg-blue-100 px-2 py-1 rounded-full mr-2 mb-1"
+                >
+                  <Text className="text-blue-700 text-xs font-medium">#{tag}</Text>
                 </View>
-              )}
-              {item.is_interview_transcript && (
-                <View className="bg-red-100 px-3 py-1 rounded-full">
-                  <Text className="text-red-700 text-xs font-medium">Interview</Text>
+              ))}
+              {item.tags.length > 3 && (
+                <View className="bg-gray-100 px-2 py-1 rounded-full mr-2 mb-1">
+                  <Text className="text-gray-600 text-xs font-medium">+{item.tags.length - 3} more</Text>
                 </View>
               )}
             </View>
           )}
+
+          {/* Feature Indicators */}
+          <View className="flex-row mt-3 space-x-2">
+            {item.is_calculation && (
+              <View className="bg-amber-100 px-3 py-1 rounded-full">
+                <Text className="text-amber-700 text-xs font-medium">Calculation</Text>
+              </View>
+            )}
+            {item.is_interview_transcript && (
+              <View className="bg-red-100 px-3 py-1 rounded-full">
+                <Text className="text-red-700 text-xs font-medium">Interview</Text>
+              </View>
+            )}
+            {item.is_voice_transcription && (
+              <View className="bg-green-100 px-3 py-1 rounded-full">
+                <Text className="text-green-700 text-xs font-medium">Voice</Text>
+              </View>
+            )}
+            {item.markdown_content && (
+              <View className="bg-purple-100 px-3 py-1 rounded-full">
+                <Text className="text-purple-700 text-xs font-medium">Markdown</Text>
+              </View>
+            )}
+          </View>
         </LinearGradient>
       </TouchableOpacity>
     </Animated.View>

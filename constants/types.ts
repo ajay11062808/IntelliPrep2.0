@@ -10,15 +10,29 @@ export interface Note {
   user_id: string
   title: string
   content: string
+  markdown_content?: string
   category: string
   is_calculation: boolean
   is_interview_transcript: boolean
+  is_voice_transcription: boolean
   calculation_data?: CalculationData
   interview_data?: InterviewData
+  voice_data?: VoiceData
+  tags?: string[]
+  color_theme?: string
   ai_summary?: string
   ai_expanded?: string
   created_at: string
   updated_at: string
+}
+
+export interface VoiceData {
+  audio_url?: string
+  duration?: number
+  transcription?: string
+  confidence?: number
+  language?: string
+  timestamp: string
 }
 
 export interface CalculationData {

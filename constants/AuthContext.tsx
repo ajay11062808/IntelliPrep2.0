@@ -85,10 +85,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true)
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { error ,data} = await supabase.auth.signInWithPassword({
         email: email.trim().toLowerCase(),
         password,
       })
+      if (data.session) {
+        setSession(data.session)
+        setUser(data.session.user)
+      }
       if (error) throw error
     } catch (error: any) {
       handleAuthError(error)
@@ -103,7 +107,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true)
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { error,data } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
         password,
         options: {
@@ -112,6 +116,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           },
         },
       })
+      if (data.session) {
+        setSession(data.session)
+        setUser(data.session.user)
+      }
       if (error) throw error
     } catch (error: any) {
       handleAuthError(error)
@@ -122,11 +130,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const signOut = async () => {
+    setLoading(true)
     setError(null)
+    try {
     const { error } = await supabase.auth.signOut()
     if (error) {
       handleAuthError(error)
       throw error
+    }
+    setSession(null)
+    setUser(null)
+  }
+  catch (error: any) {
+    handleAuthError(error)
+    throw error
+  }
+    finally {
+      setLoading(false)
     }
   }
 
