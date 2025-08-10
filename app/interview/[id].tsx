@@ -14,6 +14,8 @@ import {
     TouchableOpacity,
     View,
 } from "react-native"
+import RealtimeTranscriber from "../../components/RealtimeTranscriber"
+import VoiceRecorder from "../../components/VoiceRecorder"
 import { useAuth } from "../../constants/AuthContext"
 import type { InterviewResponse, MockInterview } from "../../constants/types"
 import { InterviewService } from "../../services/interviewService"
@@ -127,7 +129,29 @@ export default function InterviewDetailScreen() {
     try {
       const completedInterview = await InterviewService.completeInterview(interview.id, transcript, totalDuration)
       setInterview(completedInterview)
-      Alert.alert("Interview Complete!", `Your score: ${completedInterview.score}/10`)
+      // Auto-publish transcript to Notes
+      try {
+        if (user) {
+          const title = `${completedInterview.title} - Interview Transcript`
+          await NotesService.createNote(
+            user.id,
+            title,
+            transcript,
+            "interview",
+            false,
+            true,
+            undefined,
+            {
+              interview_id: completedInterview.id,
+              duration: completedInterview.duration || totalDuration,
+              questions_count: completedInterview.questions.length,
+              score: completedInterview.score,
+              feedback: completedInterview.feedback,
+            } as any,
+          )
+        }
+      } catch {}
+      Alert.alert("Interview Complete!", `Your score: ${completedInterview.score}/10\nTranscript saved to Notes.`)
     } catch (error: any) {
       Alert.alert("Error", "Failed to complete interview")
     }
@@ -299,6 +323,20 @@ export default function InterviewDetailScreen() {
                 numberOfLines={6}
                 textAlignVertical="top"
               />
+              <View style={{ marginTop: 12 }}>
+                <VoiceRecorder
+                  onTranscriptionComplete={(voiceData) => {
+                    const combined = currentAnswer ? `${currentAnswer}\n\n[Voice Transcript:] ${voiceData.transcription}` : voiceData.transcription
+                    setCurrentAnswer(combined)
+                  }}
+                />
+              </View>
+              <View style={{ marginTop: 12, alignItems: 'center' }}>
+                <RealtimeTranscriber
+                  onPartialText={(t) => setCurrentAnswer((prev) => (prev ? prev + " " + t : t))}
+                  onFinalText={(t) => setCurrentAnswer((prev) => (prev ? prev + "\n" + t : t))}
+                />
+              </View>
             </View>
 
             <TouchableOpacity

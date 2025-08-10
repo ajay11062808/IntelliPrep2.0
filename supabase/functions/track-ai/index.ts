@@ -51,7 +51,26 @@ serve(async (req) => {
         return j({ status: "limit_exceeded", limit })
       }
 
-      // Compare-and-swap style guarded update
+      // Optional scope-based idempotency (e.g., count whole interview as 1 regardless of multiple calls)
+      const scopeType = body?.scope_type
+      const scopeId = body?.scope_id
+      if (scopeType && scopeId) {
+        // Ensure a single usage row per scope_id per day
+        const { data: existing } = await supabase
+          .from("ai_usage_events")
+          .select("id, created_at")
+          .eq("user_id", user_id)
+          .eq("scope_type", scopeType)
+          .eq("scope_id", scopeId)
+          .gte("created_at", `${today}T00:00:00.000Z`)
+          .limit(1)
+        if (existing && existing.length > 0) {
+          // Already counted today for this scope → just return ok without incrementing profile counter
+          return j({ status: "ok", remaining: Math.max(0, limit - count) })
+        }
+      }
+
+      // Compare-and-swap style guarded update (increment once per call when scope not previously counted)
       const { data: updated, error: updErr } = await supabase
         .from("profiles")
         .update({ ai_usage_count: count + 1, ai_usage_date: today })
@@ -61,6 +80,14 @@ serve(async (req) => {
         .single()
 
       if (!updErr && updated) {
+        // Record scope event if provided
+        if (scopeType && scopeId) {
+          await supabase.from("ai_usage_events").insert({
+            user_id,
+            scope_type: scopeType,
+            scope_id: scopeId,
+          })
+        }
         const used = updated.ai_usage_count || 0
         return j({ status: "ok", remaining: Math.max(0, limit - used) })
       }

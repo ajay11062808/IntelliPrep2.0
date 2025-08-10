@@ -9,23 +9,59 @@ export class InterviewService {
     category: string,
     difficulty: string,
     questionCount: number,
+    resumeContextText?: string,
   ): Promise<MockInterview> {
-    // Generate questions using direct AI call
-    const questionsData = await AIService.generateInterviewQuestions(category, difficulty, questionCount)
-
-    const { data, error } = await supabase
+    // Enforce daily interview creation limit for free users (1 per day)
+    try {
+      const { data: profile } = await supabase.from("profiles").select("is_premium").eq("id", userId).single()
+      const isPremium = !!profile?.is_premium
+      if (!isPremium) {
+        const start = new Date()
+        start.setHours(0, 0, 0, 0)
+        const end = new Date(start)
+        end.setDate(end.getDate() + 1)
+        const { count } = await supabase
+          .from("mock_interviews")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .gte("created_at", start.toISOString())
+          .lt("created_at", end.toISOString())
+        if ((count || 0) >= 1) {
+          const error: any = new Error("INTERVIEW_DAILY_LIMIT")
+          error.code = "INTERVIEW_DAILY_LIMIT"
+          throw error
+        }
+      }
+    } catch (limitErr) {
+      // Re-throw to be handled by caller
+      throw limitErr
+    }
+    // Create interview row first to get a stable ID for usage scoping
+    const { data: created, error: createErr } = await supabase
       .from("mock_interviews")
-      .insert({
-        user_id: userId,
-        title,
-        questions: questionsData.questions,
-        status: "pending",
-      })
+      .insert({ user_id: userId, title, questions: [], status: "pending" })
       .select()
       .single()
+    if (createErr || !created) throw createErr
 
-    if (error) throw error
-    return data
+    // Generate questions using direct AI call with optional resume context, scoped to this interview id
+    const questionsData = await AIService.generateInterviewQuestions(
+      category,
+      difficulty,
+      questionCount,
+      resumeContextText,
+      `interview_${created.id}`,
+    )
+
+    // Update interview with generated questions
+    const { data: updated, error: updErr } = await supabase
+      .from("mock_interviews")
+      .update({ questions: questionsData.questions })
+      .eq("id", created.id)
+      .select()
+      .single()
+    if (updErr) throw updErr
+    return updated
   }
 
   static async getInterview(id: string): Promise<MockInterview | null> {
@@ -60,7 +96,7 @@ export class InterviewService {
     duration: number,
   ): Promise<{ score: number; feedback: string }> {
     // Evaluate response using direct AI call
-    const evaluation = await AIService.evaluateInterviewResponse(questionText, answer)
+    const evaluation = await AIService.evaluateInterviewResponse(questionText, answer, `interview_${interviewId}`)
 
     // Get current interview
     const interview = await this.getInterview(interviewId)

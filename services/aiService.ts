@@ -33,12 +33,12 @@ async function useFreshGenAI(): Promise<GoogleGenerativeAI> {
   return new GoogleGenerativeAI(key)
 }
 
-async function checkAndTrackUsageOrThrow(): Promise<void> {
+async function checkAndTrackUsageOrThrow(scope?: { scopeType?: string; scopeId?: string }): Promise<void> {
   // Call Supabase RPC or edge function to validate and increment usage
   const session = (await supabase.auth.getSession()).data.session
   const { data, error } = await supabase.functions.invoke("track-ai", {
     headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined,
-    body: { ping: true },
+    body: { ping: true, scope_type: scope?.scopeType, scope_id: scope?.scopeId },
   })
   if (error) {
     throw new Error((error as any)?.message || "AI usage error")
@@ -93,6 +93,39 @@ export class AIService {
       const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 0)
       const summary = sentences.slice(0, 2).join(". ") + "."
       return summary || "Unable to generate summary."
+    }
+  }
+
+  // Parse resume PDF via Gemini (inline base64 PDF)
+  static async extractResumeFromPdfBase64(base64Pdf: string): Promise<{ status: "ok"; parsed: any } | { status: "error"; error: string }> {
+    try {
+      await checkAndTrackUsageOrThrow({ scopeType: "resume_parse", scopeId: `pdf_${Date.now()}` })
+      const client = await useFreshGenAI()
+      const model = client.getGenerativeModel({ model: "gemini-1.5-flash" })
+
+      const systemPrompt = `You are a precise resume parsing engine. Read the attached PDF resume and return a compact JSON with:
+{
+  "summary": string | null,
+  "skills": string[],
+  "certifications": string[],
+  "experience": Array<{ company?: string, role?: string, dates?: string, location?: string, bullets: string[] }>
+}
+Rules:
+- Keep arrays short (skills max 50, bullets max 10 per role, experience max 10 roles)
+- No prose, return ONLY JSON. No markdown fences.`
+
+      const result = await model.generateContent([
+        { text: systemPrompt },
+        { inlineData: { mimeType: "application/pdf", data: base64Pdf } as any },
+      ])
+      const response = await result.response
+      const text = response.text()
+      const cleaned = text.replace(/```json\n?|```/g, "").trim()
+      const parsed = JSON.parse(cleaned)
+      return { status: "ok", parsed }
+    } catch (err: any) {
+      const message = err?.message || String(err)
+      return { status: "error", error: message }
     }
   }
 
@@ -161,12 +194,18 @@ export class AIService {
     category: string,
     difficulty: string,
     count: number,
+    resumeContextText?: string,
+    usageScopeId?: string,
   ): Promise<{ questions: any[] }> {
     try {
-      await checkAndTrackUsageOrThrow()
+      await checkAndTrackUsageOrThrow(
+        usageScopeId ? { scopeType: "interview", scopeId: usageScopeId } : undefined,
+      )
       const client = await useFreshGenAI()
 
-      const prompt = `Generate ${count} ${difficulty} level ${category} interview questions. 
+      const prompt = `Generate ${count} ${difficulty} level ${category} interview questions.
+      Tailor the questions to the candidate based on the provided resume/context if available.
+      ${resumeContextText && resumeContextText.trim().length > 0 ? `\n\nCandidate resume/context:\n"""\n${resumeContextText.slice(0, 6000)}\n"""\n` : ""}
       Each question should be realistic, professional, and appropriate for the difficulty level.
       
       Format the response as a JSON array with objects containing:
@@ -229,9 +268,12 @@ export class AIService {
   static async evaluateInterviewResponse(
     question: string,
     answer: string,
+    usageScopeId?: string,
   ): Promise<{ score: number; feedback: string }> {
     try {
-      await checkAndTrackUsageOrThrow()
+      await checkAndTrackUsageOrThrow(
+        usageScopeId ? { scopeType: "interview", scopeId: usageScopeId } : undefined,
+      )
       const client = await useFreshGenAI()
 
       const prompt = `Evaluate this interview response on a scale of 1-10 and provide constructive feedback.
