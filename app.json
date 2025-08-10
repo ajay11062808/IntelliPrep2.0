@@ -49,7 +49,14 @@
           "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone for voice recording."
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "iosAppId": "ca-app-pub-8052304342849455~2979276655",
+          "androidAppId": "ca-app-pub-8052304342849455~2979276655"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

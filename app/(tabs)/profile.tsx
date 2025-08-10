@@ -5,19 +5,20 @@ import { LinearGradient } from "expo-linear-gradient"
 import * as SecureStore from "expo-secure-store"
 import { useEffect, useState } from "react"
 import {
-  ActivityIndicator,
-  Alert,
-  Linking,
-  Modal,
-  Platform,
-  ScrollView,
-  Share,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Linking,
+    Modal,
+    Platform,
+    ScrollView,
+    Share,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
+import SupportUsRewarded from "../../components/SupportUsRewarded"
 import { supabase } from "../../config/supabase"
 import { useAuth } from "../../constants/AuthContext"
 import { useThemePreference } from "../../constants/themeContext"
@@ -437,13 +438,17 @@ export default function SettingsScreen() {
               <Text className="ml-3 text-gray-800 dark:text-gray-100 font-medium">Share app</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              className="flex-row items-center p-3 rounded-xl bg-gray-50 dark:bg-gray-800"
-              onPress={() => Linking.openURL("https://www.buymeacoffee.com/your-handle")}
-            >
-              <Ionicons name="cafe" size={20} color="#F59E0B" />
-              <Text className="ml-3 text-gray-800 dark:text-gray-100 font-medium">Support us (Buy us a coffee)</Text>
-            </TouchableOpacity>
+            {/* Rewarded Ad button */}
+            <View className="p-3 rounded-xl bg-gray-50 dark:bg-gray-800">
+              <View className="flex-row items-center mb-2">
+                <Ionicons name="gift" size={20} color="#10B981" />
+                <Text className="ml-3 text-gray-800 dark:text-gray-100 font-medium">Support us</Text>
+              </View>
+              <SupportUsRewarded />
+              <Text className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                Watching a short ad helps us keep improving the app. Thank you!
+              </Text>
+            </View>
           </View>
         </View>
 

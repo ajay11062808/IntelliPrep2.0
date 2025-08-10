@@ -14,8 +14,7 @@ import {
     TouchableOpacity,
     View,
 } from "react-native"
-import RealtimeTranscriber from "../../components/RealtimeTranscriber"
-import VoiceRecorder from "../../components/VoiceRecorder"
+// Mic features temporarily disabled
 import { useAuth } from "../../constants/AuthContext"
 import type { InterviewResponse, MockInterview } from "../../constants/types"
 import { InterviewService } from "../../services/interviewService"
@@ -323,20 +322,7 @@ export default function InterviewDetailScreen() {
                 numberOfLines={6}
                 textAlignVertical="top"
               />
-              <View style={{ marginTop: 12 }}>
-                <VoiceRecorder
-                  onTranscriptionComplete={(voiceData) => {
-                    const combined = currentAnswer ? `${currentAnswer}\n\n[Voice Transcript:] ${voiceData.transcription}` : voiceData.transcription
-                    setCurrentAnswer(combined)
-                  }}
-                />
-              </View>
-              <View style={{ marginTop: 12, alignItems: 'center' }}>
-                <RealtimeTranscriber
-                  onPartialText={(t) => setCurrentAnswer((prev) => (prev ? prev + " " + t : t))}
-                  onFinalText={(t) => setCurrentAnswer((prev) => (prev ? prev + "\n" + t : t))}
-                />
-              </View>
+              {/* Mic features temporarily disabled */}
             </View>
 
             <TouchableOpacity

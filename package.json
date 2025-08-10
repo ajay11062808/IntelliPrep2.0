@@ -51,8 +51,10 @@
     "react-native-url-polyfill": "^2.0.0",
     "react-native-web": "~0.20.0",
     "react-native-webview": "13.13.5",
+    "react-native-google-mobile-ads": "^14.9.1",
     "supabase": "^2.33.9",
-    "zustand": "^5.0.6"
+    "zustand": "^5.0.6",
+    "expo-dev-client": "~5.2.4"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
