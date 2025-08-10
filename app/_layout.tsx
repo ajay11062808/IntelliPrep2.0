@@ -36,6 +36,18 @@ function RootTree() {
       <Stack>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        {/* Catch-all for links like /auth/confirm from templates */}
+        <Stack.Screen name="auth/confirm" options={{ headerShown: false }} />
+        {/* Password reset deep link destination */}
+        <Stack.Screen name="reset-password" options={{ headerShown: false }} />
+        <Stack.Screen 
+          name="email-confirmation" 
+          options={{ 
+            headerShown: false,
+            presentation: "modal"
+          }} 
+        />
+        
         <Stack.Screen
           name="note/[id]"
           options={{

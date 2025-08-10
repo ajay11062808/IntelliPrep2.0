@@ -48,7 +48,8 @@
         {
           "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone for voice recording."
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true

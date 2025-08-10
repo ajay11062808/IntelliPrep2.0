@@ -114,6 +114,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           data: {
             full_name: fullName.trim(),
           },
+          emailRedirectTo: "intelliprep20://email-confirmation",
         },
       })
       if (data.session) {
@@ -149,6 +150,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false)
     }
   }
+
+
 
   const resetPassword = async (email: string) => {
     setError(null)

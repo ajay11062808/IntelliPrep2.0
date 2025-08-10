@@ -6,17 +6,17 @@ import { LinearGradient } from "expo-linear-gradient"
 import { Link } from "expo-router"
 import { useEffect, useRef, useState } from "react"
 import {
-  ActivityIndicator,
-  Alert,
-  Animated,
-  KeyboardAvoidingView,
-  Platform,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    Animated,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from "react-native"
-import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { useAuth } from "../../constants/AuthContext"
 
@@ -98,13 +98,10 @@ export default function LoginScreen() {
           className="flex-1"
           keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
         >
-          <KeyboardAwareScrollView
-            enableOnAndroid
-            extraScrollHeight={20}
-            extraHeight={Platform.OS === "android" ? 100 : 0}
-            keyboardShouldPersistTaps="always"
+          <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ flexGrow: 1, paddingVertical: 24, paddingHorizontal: 32 }}
+            keyboardShouldPersistTaps="always"
           >
           {/* Header */}
           <Animated.View
@@ -232,7 +229,7 @@ export default function LoginScreen() {
               </View>
             </BlurView>
           </Animated.View>
-          </KeyboardAwareScrollView>
+          </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </LinearGradient>

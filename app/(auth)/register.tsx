@@ -3,20 +3,20 @@
 import { Ionicons } from "@expo/vector-icons"
 import { BlurView } from "expo-blur"
 import { LinearGradient } from "expo-linear-gradient"
-import { Link } from "expo-router"
+import { Link, router } from "expo-router"
 import { useEffect, useRef, useState } from "react"
 import {
-  ActivityIndicator,
-  Alert,
-  Animated,
-  KeyboardAvoidingView,
-  Platform,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    Animated,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from "react-native"
-import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { useAuth } from "../../constants/AuthContext"
 
@@ -89,9 +89,18 @@ export default function RegisterScreen() {
     setIsLoading(true)
     try {
       await signUp(email, password, fullName)
-      Alert.alert("Success", "Account created successfully! Please check your email to verify your account.", [
-        { text: "OK", onPress: () => {} },
-      ])
+      Alert.alert(
+        "Account Created Successfully!", 
+        "Please check your email and click the confirmation link to activate your account.", 
+        [
+          { 
+            text: "OK", 
+            onPress: () => {
+              router.push("/email-confirmation")
+            } 
+          },
+        ]
+      )
     } catch (error: any) {
       // Error is handled by the context
     } finally {
@@ -118,13 +127,10 @@ export default function RegisterScreen() {
           className="flex-1"
           keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
         >
-          <KeyboardAwareScrollView
-            enableOnAndroid
-            extraScrollHeight={20}
-            extraHeight={Platform.OS === "android" ? 120 : 0}
-            keyboardShouldPersistTaps="always"
+          <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ flexGrow: 1, paddingVertical: 24, paddingHorizontal: 32 }}
+            keyboardShouldPersistTaps="always"
           >
             {/* Header */}
             <Animated.View
@@ -300,7 +306,7 @@ export default function RegisterScreen() {
                 </View>
               </BlurView>
             </Animated.View>
-          </KeyboardAwareScrollView>
+          </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </LinearGradient>
