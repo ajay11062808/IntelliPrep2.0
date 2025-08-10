@@ -512,7 +512,7 @@ export default function NoteDetailScreen() {
                 </BlurView>
                 
                 {/* Quick AI Enhancement Button - Always visible when there's content */}
-                {content.trim().length > 10 && (
+                {content.trim().length > 30 && (
                   <View className="mt-3 flex-row space-x-2">
                         <TouchableOpacity
                       onPress={() => handleAiEnhancement("summarize")}

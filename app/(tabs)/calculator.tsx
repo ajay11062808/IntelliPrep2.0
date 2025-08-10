@@ -8,6 +8,7 @@ import {
   Alert,
   Animated,
   Dimensions,
+  Modal,
   Platform,
   ScrollView,
   StatusBar,
@@ -42,6 +43,8 @@ export default function CalculatorScreen() {
   const [waitingForOperand, setWaitingForOperand] = useState(false)
   const [expression, setExpression] = useState("") // Track full expression
   const [hasComputed, setHasComputed] = useState(false)
+  const [isManualExpression, setIsManualExpression] = useState(false)
+  const [previewResult, setPreviewResult] = useState<number | null>(null)
 
   // Interest calculator state
   const [interestForm, setInterestForm] = useState({
@@ -61,6 +64,9 @@ export default function CalculatorScreen() {
 
   const [interestResult, setInterestResult] = useState<any | null>(null)
   const [bmiResult, setBmiResult] = useState<any | null>(null)
+  const [showBMISummary, setShowBMISummary] = useState(false)
+  const [showInterestSummary, setShowInterestSummary] = useState(false)
+  const [historyRefresh, setHistoryRefresh] = useState(0)
 
   const tabs = [
     { id: "simple", name: "Simple", icon: "calculator", gradient: ["#6366F1", "#8B5CF6"] },
@@ -84,6 +90,26 @@ export default function CalculatorScreen() {
     ]).start()
   }
 
+  // Live preview helper: evaluate expression without trailing operator or '= result'
+  const updatePreviewFrom = (expr: string) => {
+    try {
+      if (!expr) {
+        setPreviewResult(null)
+        return
+      }
+      const noEquals = expr.includes("=") ? expr.split("=")[0].trim() : expr.trim()
+      const trimmed = noEquals.replace(/[+\-*/]\s*$/,'').trim()
+      if (!trimmed) {
+        setPreviewResult(null)
+        return
+      }
+      const res = CalculatorService.evaluateExpression(trimmed)
+      setPreviewResult(Number.isFinite(res) ? res : null)
+    } catch {
+      setPreviewResult(null)
+    }
+  }
+
   // Simple calculator functions
   const inputNumber = (num: string) => {
     animateButton()
@@ -94,22 +120,58 @@ export default function CalculatorScreen() {
       setDisplay(display === "0" ? String(num) : display + num)
     }
     setHasComputed(false)
+
+    // Keep top expression in the same order as typed (unless user is manually editing it)
+    if (!isManualExpression) {
+      setExpression((prev) => {
+        // If previous expression contains '=', start a new expression
+        const wasComputed = prev.includes("=")
+        const base = wasComputed ? "" : prev
+        // Decide spacing: if starting or just after an operator, add space before number
+        if (!base || /[+\-*/]\s*$/.test(base)) {
+          const next = (base ? base + " " : "") + num
+          updatePreviewFrom(next)
+          return next
+        }
+        const next = base + num
+        updatePreviewFrom(next)
+        return next
+      })
+    }
   }
 
   const inputOperation = (nextOperation: string) => {
     animateButton()
     const inputValue = Number.parseFloat(display)
 
+    // Append the current typed value and the operator to the expression (unless manually edited)
+    if (!isManualExpression) {
+      setExpression((prev) => {
+        // If expression already had '=', start fresh with current display
+        let base = prev.includes("=") ? "" : (prev || "")
+        base = base.trim()
+        const endsWithOp = /[+\-*/]\s*$/.test(base)
+        const endsWithNumber = /[0-9)]$/.test(base)
+        if (endsWithOp) {
+          // Replace the previous operator with the new one
+          const next = base.replace(/[+\-*/]\s*$/,'') + ` ${nextOperation}`
+          updatePreviewFrom(next)
+          return next
+        }
+        // Ensure the current input value appears at least once before the operator
+        let next = base
+        if (!endsWithNumber) {
+          next += (next ? ' ' : '') + String(inputValue)
+        }
+        next = `${next} ${nextOperation}`
+        updatePreviewFrom(next)
+        return next
+      })
+    }
+
+    // Do not compute on operator press; wait for next number or '='
     if (previousValue === null) {
       setPreviousValue(inputValue)
-      setExpression(`${inputValue} ${nextOperation}`)
-    } else if (operation) {
-      const currentValue = previousValue || 0
-      const newValue = calculate(currentValue, inputValue, operation)
-
-      setDisplay(String(newValue))
-      setPreviousValue(newValue)
-      setExpression(`${newValue} ${nextOperation}`)
     }
 
     setWaitingForOperand(true)
@@ -136,27 +198,60 @@ export default function CalculatorScreen() {
 
   const performCalculation = async () => {
     animateButton()
-    const inputValue = Number.parseFloat(display)
+    // If user manually edited expression, evaluate it directly
+    if (isManualExpression && expression.trim()) {
+      try {
+        const rawExpr = expression.includes("=") ? expression.split("=")[0].trim() : expression.trim()
+        const newValue = CalculatorService.evaluateExpression(rawExpr)
 
-    if (previousValue !== null && operation) {
-      const newValue = calculate(previousValue, inputValue, operation)
-      const fullExpression = `${previousValue} ${operation} ${inputValue}`
+        setDisplay(String(newValue))
+        setPreviousValue(null)
+        setOperation(null)
+        setWaitingForOperand(true)
+        setExpression(`${rawExpr} = ${newValue}`)
+        setHasComputed(true)
+        setIsManualExpression(false)
 
-      setDisplay(String(newValue))
+        if (user) {
+          try {
+            await CalculatorService.saveCalculation(user.id, rawExpr, newValue, "basic")
+          } catch (error) {
+            console.error("Error saving calculation:", error)
+          }
+        }
+      } catch (e) {
+        Alert.alert("Error", "Invalid expression")
+      }
+      return
+    }
+
+    // Normal keypad flow: evaluate full expression string on '='
+    const trimmed = (expression || "").trim()
+    if (!trimmed) return
+    try {
+      // If expression ends with an operator, append the current display as the last operand
+      const endsWithOp = /[+\-*/]\s*$/.test(trimmed)
+      const rawExpr = endsWithOp ? `${trimmed} ${display}` : trimmed
+
+      const result = CalculatorService.evaluateExpression(rawExpr)
+
+      setDisplay(String(result))
       setPreviousValue(null)
       setOperation(null)
       setWaitingForOperand(true)
-      setExpression(`${fullExpression} = ${newValue}`)
+      setExpression(`${rawExpr} = ${result}`)
       setHasComputed(true)
+      setPreviewResult(null)
 
-      // Save to database
       if (user) {
         try {
-          await CalculatorService.saveCalculation(user.id, fullExpression, newValue, "basic")
+          await CalculatorService.saveCalculation(user.id, rawExpr, result, "basic")
         } catch (error) {
           console.error("Error saving calculation:", error)
         }
       }
+    } catch (e) {
+      Alert.alert("Error", "Invalid expression")
     }
   }
 
@@ -168,11 +263,13 @@ export default function CalculatorScreen() {
     setWaitingForOperand(false)
     setExpression("")
     setHasComputed(false)
+    setIsManualExpression(false)
+    setPreviewResult(null)
   }
 
   const saveSimpleCalculationToNotes = async () => {
     if (!user) return
-    if (!hasComputed || !expression || !operation) {
+    if (!hasComputed || !expression) {
       Alert.alert("Nothing to save", "Please perform a calculation first.")
       return
     }
@@ -219,38 +316,28 @@ export default function CalculatorScreen() {
         fromDate.toISOString().slice(0,10),
         toDate.toISOString().slice(0,10),
       )
-
-      // Save to database FIRST
+      // Save to history DB automatically so History shows it
       if (user) {
-        const expression = `${interestForm.name}: $${result.principal} at ${result.rate}% for ${result.elapsedDays} days`
-        await CalculatorService.saveCalculation(user.id, expression, result.totalAmount, "interest", {
-          name: interestForm.name,
-          principal: result.principal,
-          rate: result.rate,
-          fromDate: fromDate.toISOString().slice(0,10),
-          toDate: toDate.toISOString().slice(0,10),
-          elapsedDays: result.elapsedDays,
-          interest: result.interest,
-        })
+        try {
+          const expr = `${interestForm.name}: ₹${result.principal} at ${result.rate}%/mo for ${result.breakdown?.years || 0}y ${result.breakdown?.months || 0}m ${result.breakdown?.days || 0}d`
+          await CalculatorService.saveCalculation(user.id, expr, result.totalAmount, "interest", {
+            name: interestForm.name,
+            principal: result.principal,
+            rate: result.rate,
+            fromDate: fromDate.toISOString().slice(0,10),
+            toDate: toDate.toISOString().slice(0,10),
+            elapsedDays: result.elapsedDays,
+            interest: result.interest,
+            breakdown: result.breakdown,
+          })
+          setHistoryRefresh((v) => v + 1)
+        } catch (e) {
+          console.warn('Failed to save interest calc to history', e)
+        }
       }
-
-      const resultText = `Interest Calculation Results:
-Name: ${interestForm.name}
-Principal Amount: $${result.principal.toLocaleString()}
-Interest Rate: ${result.rate}% per annum
-Period: ${fromDate.toISOString().slice(0,10)} to ${toDate.toISOString().slice(0,10)}
-Elapsed Days: ${result.elapsedDays} days
-Interest Earned: $${result.interest.toLocaleString()}
-Total Amount: $${result.totalAmount.toLocaleString()}`
-
+      // Show a styled summary modal
       setInterestResult(result)
-      Alert.alert("Interest Calculation", resultText, [
-        { text: "OK" },
-        {
-          text: "Save to Notes",
-          onPress: () => saveInterestToNotes(result),
-        },
-      ])
+      setShowInterestSummary(true)
     } catch (error) {
       Alert.alert("Error", "Invalid input values")
     }
@@ -262,18 +349,18 @@ Total Amount: $${result.totalAmount.toLocaleString()}`
     const title = `Interest Calculation - ${interestForm.name}`
     const content = `Interest Calculation Results:
 Name: ${interestForm.name}
-Principal Amount: $${result.principal.toLocaleString()}
-Interest Rate: ${result.rate}% per annum
+Principal Amount: ₹${result.principal.toLocaleString()}
+Interest Rate: ${result.rate}% per month
 Period: ${fromDate?.toISOString().slice(0,10)} to ${toDate?.toISOString().slice(0,10)}
-Elapsed Days: ${result.elapsedDays} days
-Interest Earned: $${result.interest.toLocaleString()}
-Total Amount: $${result.totalAmount.toLocaleString()}
+Elapsed: ${result.breakdown?.years || 0}y ${result.breakdown?.months || 0}m ${result.breakdown?.days || 0}d
+Interest Earned: ₹${result.interest.toLocaleString()}
+Total Amount: ₹${result.totalAmount.toLocaleString()}
 
 Calculated on: ${new Date().toLocaleString()}`
 
     const calculationData: CalculationData = {
       type: "interest",
-      expression: `${interestForm.name}: $${result.principal} at ${result.rate}% for ${result.elapsedDays} days`,
+      expression: `${interestForm.name}: ₹${result.principal} at ${result.rate}%/mo for ${result.breakdown?.years || 0}y ${result.breakdown?.months || 0}m ${result.breakdown?.days || 0}d`,
       result: result.totalAmount,
       timestamp: new Date().toISOString(),
       metadata: {
@@ -290,12 +377,77 @@ Calculated on: ${new Date().toLocaleString()}`
     try {
       await CalculatorService.saveCalculationToNotes(user.id, title, content, calculationData)
       Alert.alert("Success", "Interest calculation saved to notes!")
-      setShowInterestModal(false)
+      setShowInterestSummary(false)
       setInterestForm({ name: "", amount: "", rate: "", fromDate: "", toDate: "" })
     } catch (error) {
       Alert.alert("Error", "Failed to save to notes")
     }
   }
+
+  const renderInterestResultModal = () => (
+    <Modal visible={showInterestSummary} transparent animationType="slide" onRequestClose={() => setShowInterestSummary(false)}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
+        <LinearGradient colors={["#FFFFFF", "#F3F4F6"]} style={{ borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20 }}>
+          <View style={{ alignItems: 'center', marginBottom: 12 }}>
+            <View style={{ width: 60, height: 5, borderRadius: 3, backgroundColor: '#E5E7EB' }} />
+          </View>
+          <Text style={{ fontSize: 20, fontWeight: '800', color: '#111827', marginBottom: 8 }}>Interest Summary</Text>
+          {interestResult && (
+            <View>
+              <Text style={{ color: '#374151', fontWeight: '600', marginBottom: 6 }}>{interestForm.name}</Text>
+              <View style={{ backgroundColor: '#F9FAFB', borderRadius: 12, padding: 12, marginBottom: 10 }}>
+                <Text style={{ color: '#6B7280' }}>Principal</Text>
+                <Text style={{ color: '#111827', fontSize: 22, fontWeight: '700' }}>₹{interestResult.principal.toLocaleString()}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
+                <View style={{ flex: 1, backgroundColor: '#EEF2FF', borderRadius: 12, padding: 12 }}>
+                  <Text style={{ color: '#4F46E5', fontSize: 12, fontWeight: '700' }}>Rate (per month)</Text>
+                  <Text style={{ color: '#3730A3', fontSize: 18, fontWeight: '800' }}>{interestResult.rate}%</Text>
+                </View>
+                <View style={{ flex: 1, backgroundColor: '#ECFDF5', borderRadius: 12, padding: 12 }}>
+                  <Text style={{ color: '#047857', fontSize: 12, fontWeight: '700' }}>Elapsed</Text>
+                  <Text style={{ color: '#065F46', fontSize: 16, fontWeight: '700' }}>{interestResult.breakdown?.years || 0}y {interestResult.breakdown?.months || 0}m {interestResult.breakdown?.days || 0}d</Text>
+                </View>
+              </View>
+              {interestResult.breakdown && (
+                <View style={{ backgroundColor: '#F3F4F6', borderRadius: 12, padding: 12, marginBottom: 10 }}>
+                  <Text style={{ color: '#6B7280', marginBottom: 8, fontWeight: '700' }}>Interest Breakdown</Text>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <Text style={{ color: '#374151' }}>Days</Text>
+                    <Text style={{ color: '#111827', fontWeight: '700' }}>₹{interestResult.breakdown.interestDays.toLocaleString()}</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <Text style={{ color: '#374151' }}>Months</Text>
+                    <Text style={{ color: '#111827', fontWeight: '700' }}>₹{interestResult.breakdown.interestMonths.toLocaleString()}</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ color: '#374151' }}>Years</Text>
+                    <Text style={{ color: '#111827', fontWeight: '700' }}>₹{interestResult.breakdown.interestYears.toLocaleString()}</Text>
+                  </View>
+                </View>
+              )}
+              <View style={{ backgroundColor: '#FFF7ED', borderRadius: 12, padding: 12, marginBottom: 12 }}>
+                <Text style={{ color: '#9A3412', fontSize: 12, fontWeight: '700' }}>Total Amount</Text>
+                <Text style={{ color: '#7C2D12', fontSize: 28, fontWeight: '900' }}>₹{interestResult.totalAmount.toLocaleString()}</Text>
+              </View>
+            </View>
+          )}
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <TouchableOpacity onPress={() => { if (interestResult) saveInterestToNotes(interestResult) }} style={{ flex: 1 }}>
+              <LinearGradient colors={["#6366F1", "#8B5CF6"]} style={{ paddingVertical: 14, borderRadius: 12, alignItems: 'center' }}>
+                <Text style={{ color: 'white', fontWeight: '700' }}>Save to Notes</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowInterestSummary(false)} style={{ flex: 1 }}>
+              <LinearGradient colors={["#9CA3AF", "#6B7280"]} style={{ paddingVertical: 14, borderRadius: 12, alignItems: 'center' }}>
+                <Text style={{ color: 'white', fontWeight: '700' }}>Close</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
+      </View>
+    </Modal>
+  )
 
   // BMI calculator functions
   const calculateBMI = async () => {
@@ -309,36 +461,25 @@ Calculated on: ${new Date().toLocaleString()}`
         Number.parseFloat(bmiForm.height),
         Number.parseFloat(bmiForm.weight),
       )
-
-      // Save to database FIRST
+      // Save to history DB automatically
       if (user) {
-        const expression = `${bmiForm.name}: BMI for ${result.height}cm, ${result.weight}kg`
-        await CalculatorService.saveCalculation(user.id, expression, result.bmi, "bmi", {
-          name: bmiForm.name,
-          height: result.height,
-          weight: result.weight,
-          category: result.category,
-          healthStatus: result.healthStatus,
-        })
+        try {
+          const expression = `${bmiForm.name}: BMI for ${result.height}cm, ${result.weight}kg`
+          await CalculatorService.saveCalculation(user.id, expression, result.bmi, "bmi", {
+            name: bmiForm.name,
+            height: result.height,
+            weight: result.weight,
+            category: result.category,
+            healthStatus: result.healthStatus,
+          })
+          setHistoryRefresh((v) => v + 1)
+        } catch (e) {
+          console.warn('Failed to save BMI calc to history', e)
+        }
       }
-
-      const resultText = `BMI Calculation Results:
-Name: ${bmiForm.name}
-Height: ${result.height} cm
-Weight: ${result.weight} kg
-BMI: ${result.bmi}
-Category: ${result.category}
-
-Health Status: ${result.healthStatus}`
-
+      // Show BMI summary modal
       setBmiResult(result)
-      Alert.alert("BMI Calculation", resultText, [
-        { text: "OK" },
-        {
-          text: "Save to Notes",
-          onPress: () => saveBMIToNotes(result),
-        },
-      ])
+      setShowBMISummary(true)
     } catch (error) {
       Alert.alert("Error", "Invalid input values")
     }
@@ -376,12 +517,59 @@ Calculated on: ${new Date().toLocaleString()}`
     try {
       await CalculatorService.saveCalculationToNotes(user.id, title, content, calculationData)
       Alert.alert("Success", "BMI calculation saved to notes!")
-      setShowBMIModal(false)
+      setShowBMISummary(false)
       setBmiForm({ name: "", height: "", weight: "" })
     } catch (error) {
       Alert.alert("Error", "Failed to save to notes")
     }
   }
+
+  const renderBMIResultModal = () => (
+    <Modal visible={showBMISummary} transparent animationType="slide" onRequestClose={() => setShowBMISummary(false)}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
+        <LinearGradient colors={["#FFFFFF", "#F3F4F6"]} style={{ borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20 }}>
+          <View style={{ alignItems: 'center', marginBottom: 12 }}>
+            <View style={{ width: 60, height: 5, borderRadius: 3, backgroundColor: '#E5E7EB' }} />
+          </View>
+          <Text style={{ fontSize: 20, fontWeight: '800', color: '#111827', marginBottom: 8 }}>BMI Summary</Text>
+          {bmiResult && (
+            <View>
+              <Text style={{ color: '#374151', fontWeight: '600', marginBottom: 6 }}>{bmiForm.name}</Text>
+              <View style={{ backgroundColor: '#F9FAFB', borderRadius: 12, padding: 12, marginBottom: 10 }}>
+                <Text style={{ color: '#6B7280' }}>BMI</Text>
+                <Text style={{ color: '#111827', fontSize: 26, fontWeight: '800' }}>{bmiResult.bmi}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
+                <View style={{ flex: 1, backgroundColor: '#EEF2FF', borderRadius: 12, padding: 12 }}>
+                  <Text style={{ color: '#4F46E5', fontSize: 12, fontWeight: '700' }}>Height (cm)</Text>
+                  <Text style={{ color: '#3730A3', fontSize: 18, fontWeight: '800' }}>{bmiResult.height}</Text>
+                </View>
+                <View style={{ flex: 1, backgroundColor: '#ECFDF5', borderRadius: 12, padding: 12 }}>
+                  <Text style={{ color: '#047857', fontSize: 12, fontWeight: '700' }}>Weight (kg)</Text>
+                  <Text style={{ color: '#065F46', fontSize: 18, fontWeight: '800' }}>{bmiResult.weight}</Text>
+                </View>
+              </View>
+              <View style={{ backgroundColor: '#FFF7ED', borderRadius: 12, padding: 12, marginBottom: 12 }}>
+                <Text style={{ color: '#9A3412', fontSize: 12, fontWeight: '700' }}>Category</Text>
+                <Text style={{ color: '#7C2D12', fontSize: 18, fontWeight: '900' }}>{bmiResult.category}</Text>
+              </View>
+              <View style={{ backgroundColor: '#F3F4F6', borderRadius: 12, padding: 12, marginBottom: 12 }}>
+                <Text style={{ color: '#6B7280', fontSize: 12, fontWeight: '700', marginBottom: 4 }}>Health Status</Text>
+                <Text style={{ color: '#111827' }}>{bmiResult.healthStatus}</Text>
+              </View>
+            </View>
+          )}
+          <View style={{ marginTop: 4 }}>
+            <TouchableOpacity onPress={() => { if (bmiResult) saveBMIToNotes(bmiResult) }}>
+              <LinearGradient colors={["#6366F1", "#8B5CF6"]} style={{ paddingVertical: 14, borderRadius: 12, alignItems: 'center' }}>
+                <Text style={{ color: 'white', fontWeight: '700' }}>Save to Notes</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
+      </View>
+    </Modal>
+  )
 
   const renderCalculatorButton = (title: string, onPress: () => void, buttonType?: string) => (
     <TouchableOpacity onPress={onPress} style={{ flex: 1, margin: 4 }}>
@@ -436,53 +624,69 @@ Calculated on: ${new Date().toLocaleString()}`
             elevation: 5,
           }}
         >
-          {/* Expression Display */}
-          {expression && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+          {/* Expression Display (editable, wraps to next line) */}
+          <View style={{ marginBottom: 12 }}>
+            <TextInput
+              value={expression}
+              onChangeText={(t) => {
+                setExpression(t)
+                setIsManualExpression(true)
+                setHasComputed(false)
+                setPreviousValue(null)
+                setOperation(null)
+              }}
+              placeholder="Type here"
+              placeholderTextColor="#9CA3AF"
+              keyboardType="numeric"
+              multiline
+              scrollEnabled
+              textAlignVertical="top"
+              style={{
+                fontSize: 18,
+                color: "#6B7280",
+                fontWeight: "500",
+                minHeight: 25,
+                width: '100%',
+                lineHeight: 22,
+                maxHeight: 140,
+              }}
+            />
+          </View>
+
+          {/* Bottom result area: faint preview while editing, bold final after '=' */}
+          {!hasComputed && previewResult !== null && (
+            <View style={{ marginBottom: 16 }}>
               <Text
                 style={{
-                  fontSize: 18,
-                  color: "#6B7280",
-                  fontWeight: "500",
-                  minHeight: 25,
+                  fontSize: 40,
+                  fontWeight: "bold",
+                  color: "#374151",
+                  opacity: 0.4,
+                  minHeight: 48,
+                  textAlign: 'right',
                 }}
               >
-                {expression}
+                {previewResult}
               </Text>
-            </ScrollView>
-          )}
-
-          {/* Current Display */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
-            <Text
-              style={{
-                fontSize: 48,
-                fontWeight: "bold",
-                color: "#374151",
-                minHeight: 60,
-              }}
-            >
-              {display}
-            </Text>
-          </ScrollView>
-
-          {/* Operation Indicator */}
-          {operation && previousValue !== null && (
-            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 16 }}>
-              <View
-                style={{
-                  backgroundColor: "#F97316",
-                  paddingHorizontal: 12,
-                  paddingVertical: 6,
-                  borderRadius: 12,
-                }}
-              >
-                <Text style={{ color: "white", fontWeight: "600", fontSize: 14 }}>
-                  {previousValue} {operation} ...
-                </Text>
-              </View>
             </View>
           )}
+          {hasComputed && (
+            <View style={{ marginBottom: 16 }}>
+              <Text
+                style={{
+                  fontSize: 44,
+                  fontWeight: "800",
+                  color: "#111827",
+                  minHeight: 52,
+                  textAlign: 'right',
+                }}
+              >
+                {display}
+              </Text>
+            </View>
+          )}
+
+          {/* Operation Indicator removed (duplicate of top expression) */}
 
           <TouchableOpacity onPress={saveSimpleCalculationToNotes}>
             <LinearGradient
@@ -584,10 +788,10 @@ Calculated on: ${new Date().toLocaleString()}`
   const renderInterestInline = () => (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: 120 }}>
       <LinearGradient colors={["rgba(255,255,255,0.9)", "rgba(255,255,255,0.7)"]} style={{ borderRadius: 25, padding: 24 }}>
-        <Text style={{ fontSize: 20, fontWeight: "700", color: "#374151", marginBottom: 16 }}>Simple Interest</Text>
-        {renderModernInput("Name/Description", interestForm.name, (t) => setInterestForm({ ...interestForm, name: t }), "e.g., Savings Account")}
-        {renderModernInput("Principal Amount ($)", interestForm.amount, (t) => setInterestForm({ ...interestForm, amount: t }), "10000", "numeric")}
-        {renderModernInput("Interest Rate (% per annum)", interestForm.rate, (t) => setInterestForm({ ...interestForm, rate: t }), "5.5", "numeric")}
+        <Text style={{ fontSize: 20, fontWeight: "700", color: "#374151", marginBottom: 16 }}>Local Interest Calculator</Text>
+        {renderModernInput("Name/Description", interestForm.name, (t) => setInterestForm({ ...interestForm, name: t }), "Type here")}
+        {renderModernInput("Principal Amount(₹)", interestForm.amount, (t) => setInterestForm({ ...interestForm, amount: t }), "", "numeric")}
+        {renderModernInput("Interest Rate", interestForm.rate, (t) => setInterestForm({ ...interestForm, rate: t }), "", "numeric")}
 
         {/* Date pickers */}
         <View style={{ marginBottom: 16 }}>
@@ -632,18 +836,6 @@ Calculated on: ${new Date().toLocaleString()}`
               <Text style={{ color: "white", fontWeight: "bold", fontSize: 16 }}>Calculate</Text>
             </LinearGradient>
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => (interestResult ? saveInterestToNotes(interestResult) : Alert.alert("No result", "Please calculate first."))}
-            style={{ flex: 1 }}
-            disabled={!interestResult}
-          >
-            <LinearGradient
-              colors={interestResult ? ["#6366F1", "#8B5CF6"] : ["#9CA3AF", "#6B7280"]}
-              style={{ paddingVertical: 14, borderRadius: 12, alignItems: "center" }}
-            >
-              <Text style={{ color: "white", fontWeight: "bold", fontSize: 16 }}>Save to Notes</Text>
-            </LinearGradient>
-          </TouchableOpacity>
         </View>
       </LinearGradient>
     </ScrollView>
@@ -660,18 +852,6 @@ Calculated on: ${new Date().toLocaleString()}`
         <TouchableOpacity onPress={calculateBMI}>
           <LinearGradient colors={["#F59E0B", "#D97706"]} style={{ paddingVertical: 14, borderRadius: 12, alignItems: "center" }}>
             <Text style={{ color: "white", fontWeight: "bold", fontSize: 16 }}>Calculate BMI</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => (bmiResult ? saveBMIToNotes(bmiResult) : Alert.alert("No result", "Please calculate first."))}
-          style={{ marginTop: 10 }}
-          disabled={!bmiResult}
-        >
-          <LinearGradient
-            colors={bmiResult ? ["#6366F1", "#8B5CF6"] : ["#9CA3AF", "#6B7280"]}
-            style={{ paddingVertical: 14, borderRadius: 12, alignItems: "center" }}
-          >
-            <Text style={{ color: "white", fontWeight: "bold", fontSize: 16 }}>Save to Notes</Text>
           </LinearGradient>
         </TouchableOpacity>
       </LinearGradient>
@@ -801,7 +981,11 @@ Calculated on: ${new Date().toLocaleString()}`
           {activeTab === "bmi" && renderBMIInline()}
 
           {/* Calculation History Modal */}
-          <CalculationHistory visible={showHistoryModal} onClose={() => setShowHistoryModal(false)} />
+          <CalculationHistory visible={showHistoryModal} onClose={() => setShowHistoryModal(false)} refreshToken={historyRefresh} />
+          {/* Interest Result Modal */}
+          {renderInterestResultModal()}
+          {/* BMI Result Modal */}
+          {renderBMIResultModal()}
         </SafeAreaView>
       </LinearGradient>
     </>

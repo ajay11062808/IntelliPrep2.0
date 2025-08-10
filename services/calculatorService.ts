@@ -11,6 +11,14 @@ export interface InterestCalculation {
   elapsedDays: number
   interest: number
   totalAmount: number
+  breakdown?: {
+    years: number
+    months: number
+    days: number
+    interestDays: number
+    interestMonths: number
+    interestYears: number
+  }
 }
 
 export interface BMICalculation {
@@ -34,31 +42,67 @@ export class CalculatorService {
     }
   }
 
-  // Interest calculator
+  // Interest calculator (advanced): uses years/months/days breakdown
   static calculateInterest(
     principal: number,
-    rate: number,
+    ratePerMonthPercent: number,
     fromDate: string,
     toDate: string,
   ): Omit<InterestCalculation, "name"> {
     const from = new Date(fromDate)
     const to = new Date(toDate)
-    const timeDiff = to.getTime() - from.getTime()
-    const elapsedDays = Math.ceil(timeDiff / (1000 * 3600 * 24))
 
-    // Simple interest calculation (annual rate)
-    const interest = (principal * rate * elapsedDays) / (365 * 100)
+    const { years, months, days } = CalculatorService.calculateElapsedTime(from, to)
+    const dailyRate = ratePerMonthPercent / 30 // percent per day
+    const monthlyRate = ratePerMonthPercent // percent per month
+    const yearlyRate = ratePerMonthPercent * 12 // percent per year
+
+    const interestDays = principal * (dailyRate / 100) * days
+    const interestMonths = principal * (monthlyRate / 100) * months
+    const interestYears = principal * (yearlyRate / 100) * years
+
+    const interest = interestDays + interestMonths + interestYears
     const totalAmount = principal + interest
+    const elapsedDays = years * 365 + months * 30 + days
 
     return {
       principal,
-      rate,
+      rate: ratePerMonthPercent,
       fromDate,
       toDate,
       elapsedDays,
       interest: Math.round(interest * 100) / 100,
       totalAmount: Math.round(totalAmount * 100) / 100,
+      breakdown: {
+        years,
+        months,
+        days,
+        interestDays: Math.round(interestDays * 100) / 100,
+        interestMonths: Math.round(interestMonths * 100) / 100,
+        interestYears: Math.round(interestYears * 100) / 100,
+      },
     }
+  }
+
+  static calculateElapsedTime(startDate: Date, endDate: Date): { years: number; months: number; days: number } {
+    const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate()
+
+    let years = endDate.getFullYear() - startDate.getFullYear()
+    let months = endDate.getMonth() - startDate.getMonth()
+    let days = endDate.getDate() - startDate.getDate()
+
+    if (days < 0) {
+      months -= 1
+      const prevMonthDays = daysInMonth(endDate.getFullYear(), endDate.getMonth() - 1)
+      days += prevMonthDays
+    }
+
+    if (months < 0) {
+      years -= 1
+      months += 12
+    }
+
+    return { years, months, days }
   }
 
   // BMI calculator
@@ -136,12 +180,13 @@ export class CalculatorService {
   }
 
   // Get calculation history
-  static async getCalculationHistory(userId: string, type?: string): Promise<any[]> {
+  static async getCalculationHistory(userId: string, type?: string, limit: number = 25): Promise<any[]> {
     let query = supabase
       .from("calculations")
       .select("*")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
+      .limit(limit)
 
     if (type) {
       query = query.eq("calculation_type", type)

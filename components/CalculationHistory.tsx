@@ -13,9 +13,10 @@ import { CalculatorService } from "../services/calculatorService"
 interface CalculationHistoryProps {
   visible: boolean
   onClose: () => void
+  refreshToken?: number
 }
 
-export default function CalculationHistory({ visible, onClose }: CalculationHistoryProps) {
+export default function CalculationHistory({ visible, onClose, refreshToken }: CalculationHistoryProps) {
   const { user } = useAuth()
   const [calculations, setCalculations] = useState<Calculation[]>([])
   const [loading, setLoading] = useState(false)
@@ -32,7 +33,7 @@ export default function CalculationHistory({ visible, onClose }: CalculationHist
     if (visible && user) {
       loadCalculations()
     }
-  }, [visible, user])
+  }, [visible, user, refreshToken])
 
   const loadCalculations = async () => {
     if (!user) return
@@ -109,7 +110,7 @@ export default function CalculationHistory({ visible, onClose }: CalculationHist
             <View>
               <Text className="text-gray-700 text-sm">Result:</Text>
               <Text className="font-bold text-2xl text-gray-800">
-                {item.calculation_type === "interest" ? "$" : ""}
+                {item.calculation_type === "interest" ? "₹" : ""}
                 {item.result.toLocaleString()}
                 {item.calculation_type === "bmi" ? " BMI" : ""}
               </Text>
