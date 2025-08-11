@@ -10,6 +10,7 @@ const AD_UNIT_ID = Platform.select({ ios: IOS_REWARDED_UNIT_ID, android: ANDROID
 
 export default function SupportUsRewarded() {
   const [loaded, setLoaded] = useState(false)
+  const [hasInteracted, setHasInteracted] = useState(false)
   const rewardedRef = useRef<RewardedAd | null>(null)
 
   useEffect(() => {
@@ -17,12 +18,27 @@ export default function SupportUsRewarded() {
     rewardedRef.current = rewarded
 
     const subLoaded = rewarded.addAdEventListener(RewardedAdEventType.LOADED, () => setLoaded(true))
+    const subError = rewarded.addAdEventListener(AdEventType.ERROR as any, (error: any) => {
+      // Always log; only alert after user interacts with Support Us
+      console.warn('Rewarded ad failed to load', error)
+      if (hasInteracted) {
+        Alert.alert('Ad Load Failed', typeof error?.message === 'string' ? error.message : 'See console for details')
+      }
+      setLoaded(false)
+    })
     const subClosed = rewarded.addAdEventListener(AdEventType.CLOSED, () => {
       // load a fresh ad after close
       setLoaded(false)
       const next = RewardedAd.createForAdRequest(AD_UNIT_ID)
       rewardedRef.current = next
       next.addAdEventListener(RewardedAdEventType.LOADED, () => setLoaded(true))
+      next.addAdEventListener(AdEventType.ERROR as any, (error: any) => {
+        console.warn('Rewarded ad failed to load (refresh)', error)
+        if (hasInteracted) {
+          Alert.alert('Ad Load Failed', typeof error?.message === 'string' ? error.message : 'See console for details')
+        }
+        setLoaded(false)
+      })
       next.load()
     })
     const subEarned = rewarded.addAdEventListener(RewardedAdEventType.EARNED_REWARD, (reward) => {
@@ -32,12 +48,13 @@ export default function SupportUsRewarded() {
     rewarded.load()
 
     return () => {
-      subLoaded(); subClosed(); subEarned()
+      subLoaded(); subError(); subClosed(); subEarned()
       rewardedRef.current = null
     }
   }, [])
 
   const onPress = () => {
+    if (!hasInteracted) setHasInteracted(true)
     const ad = rewardedRef.current
     if (!ad) {
       Alert.alert('Please try again in a moment.')

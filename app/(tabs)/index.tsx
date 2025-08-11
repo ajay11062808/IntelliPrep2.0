@@ -15,6 +15,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Modal,
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { useAuth } from "../../constants/AuthContext"
@@ -30,6 +31,12 @@ export default function NotesScreen() {
   const [selectedCategory, setSelectedCategory] = useState("all")
   const [fadeAnim] = useState(new Animated.Value(0))
   const { user, signOut } = useAuth()
+
+  // Filters & sorting state
+  const [showFilters, setShowFilters] = useState(false)
+  const [datePreset, setDatePreset] = useState<"all" | "today" | "7d" | "30d" | "year">("all")
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "title" | "category">("newest")
 
   const categories = [
     { id: "all", name: "All", icon: "apps", color: "#6366F1" },
@@ -102,6 +109,40 @@ export default function NotesScreen() {
     ])
   }
 
+  // Available tags from current notes
+  const availableTags = Array.from(
+    new Set(
+      notes
+        .flatMap((n) => (Array.isArray(n.tags) ? (n.tags as string[]) : []))
+        .filter((t) => !!t)
+    ),
+  ) as string[]
+
+  // Compute cutoff date based on preset
+  const getCutoffDate = (): Date | null => {
+    const now = new Date()
+    switch (datePreset) {
+      case "today":
+        return new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      case "7d": {
+        const d = new Date(now)
+        d.setDate(d.getDate() - 7)
+        return d
+      }
+      case "30d": {
+        const d = new Date(now)
+        d.setDate(d.getDate() - 30)
+        return d
+      }
+      case "year":
+        return new Date(now.getFullYear(), 0, 1)
+      default:
+        return null
+    }
+  }
+
+  const cutoff = getCutoffDate()
+
   const filteredNotes = notes.filter((note) => {
     const matchesSearch =
       note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -113,8 +154,29 @@ export default function NotesScreen() {
     if (selectedCategory === "voice") {
       matchesCategory = note.is_voice_transcription === true
     }
-    
-    return matchesSearch && matchesCategory
+    // Date preset filter
+    const createdAt = new Date(note.created_at)
+    const matchesDate = cutoff ? createdAt >= cutoff : true
+    // Tags filter (any-match)
+    const noteTags = (Array.isArray(note.tags) ? (note.tags as string[]) : [])
+    const matchesTags = selectedTags.length === 0 || noteTags.some((t) => selectedTags.includes(t))
+
+    return matchesSearch && matchesCategory && matchesDate && matchesTags
+  })
+
+  // Apply sorting
+  const sortedNotes = [...filteredNotes].sort((a, b) => {
+    switch (sortBy) {
+      case "oldest":
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      case "title":
+        return a.title.localeCompare(b.title)
+      case "category":
+        return (a.category || "").localeCompare(b.category || "")
+      default:
+        // newest
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    }
   })
 
   const getCategoryIcon = (category: string) => {
@@ -350,6 +412,12 @@ export default function NotesScreen() {
                   <Ionicons name="add" size={24} color="white" />
                 </TouchableOpacity>
                 <TouchableOpacity
+                  onPress={() => setShowFilters(true)}
+                  className="w-12 h-12 rounded-full bg-white/20 items-center justify-center"
+                >
+                  <Ionicons name="options-outline" size={20} color="white" />
+                </TouchableOpacity>
+                <TouchableOpacity
                   onPress={handleSignOut}
                   className="w-12 h-12 rounded-full bg-white/20 items-center justify-center"
                 >
@@ -369,6 +437,28 @@ export default function NotesScreen() {
                 className="flex-1 ml-3 text-white text-base"
               />
             </View>
+            {/* Active filter chips */}
+            {(datePreset !== "all" || selectedTags.length > 0 || sortBy !== "newest") && (
+              <View className="flex-row flex-wrap mt-3">
+                {datePreset !== "all" && (
+                  <View className="bg-white/25 px-3 py-1 rounded-full mr-2 mb-2 flex-row items-center">
+                    <Ionicons name="calendar" size={14} color="#fff" />
+                    <Text className="text-white ml-1 text-xs font-medium">{datePreset.toUpperCase()}</Text>
+                  </View>
+                )}
+                {selectedTags.map((t) => (
+                  <View key={t} className="bg-white/25 px-3 py-1 rounded-full mr-2 mb-2">
+                    <Text className="text-white text-xs font-medium">#{t}</Text>
+                  </View>
+                ))}
+                {sortBy !== "newest" && (
+                  <View className="bg-white/25 px-3 py-1 rounded-full mr-2 mb-2 flex-row items-center">
+                    <Ionicons name="swap-vertical" size={14} color="#fff" />
+                    <Text className="text-white ml-1 text-xs font-medium">{sortBy}</Text>
+                  </View>
+                )}
+              </View>
+            )}
           </View>
 
           {/* Category Filter */}
@@ -384,7 +474,7 @@ export default function NotesScreen() {
               renderEmptyState()
             ) : (
               <FlatList
-                data={filteredNotes}
+                data={sortedNotes}
                 renderItem={renderNoteCard}
                 keyExtractor={(item) => item.id}
                 showsVerticalScrollIndicator={false}
@@ -398,29 +488,79 @@ export default function NotesScreen() {
           {filteredNotes.length > 0 && (
             <TouchableOpacity
               onPress={() => router.push("/note/new")}
-              className="absolute bottom-8 right-6"
-              style={{
-                shadowColor: "#6366F1",
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.3,
-                shadowRadius: 8,
-                elevation: 8,
-              }}
+              className="absolute right-6 bottom-6 w-16 h-16 rounded-full items-center justify-center"
+              style={{ backgroundColor: "#8B5CF6", shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 10, elevation: 6 }}
             >
-              <LinearGradient
-                colors={["#6366F1", "#8B5CF6"]}
-                style={{
-                  width: 60,
-                  height: 60,
-                  borderRadius: 30,
-                  justifyContent: "center",
-                  alignItems: "center",
-                }}
-              >
-                <Ionicons name="add" size={28} color="white" />
-              </LinearGradient>
+              <Ionicons name="add" size={28} color="white" />
             </TouchableOpacity>
           )}
+          {/* Filters Modal */}
+          <Modal visible={showFilters} animationType="slide" transparent onRequestClose={() => setShowFilters(false)}>
+            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
+              <View style={{ backgroundColor: 'white', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16 }}>
+                <View style={{ alignItems: 'center', marginBottom: 8 }}>
+                  <View style={{ width: 60, height: 5, borderRadius: 3, backgroundColor: '#E5E7EB' }} />
+                </View>
+                <Text style={{ fontSize: 18, fontWeight: '800', color: '#111827', marginBottom: 12 }}>Filters</Text>
+
+                {/* Date presets */}
+                <Text style={{ color: '#6B7280', fontWeight: '700', marginBottom: 8 }}>Date</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                  {([
+                    { id: 'all', label: 'All Time' },
+                    { id: 'today', label: 'Today' },
+                    { id: '7d', label: 'Last 7 days' },
+                    { id: '30d', label: 'Last 30 days' },
+                    { id: 'year', label: 'This Year' },
+                  ] as const).map((p) => (
+                    <TouchableOpacity key={p.id} onPress={() => setDatePreset(p.id)} style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999, backgroundColor: datePreset === p.id ? '#6366F1' : '#F3F4F6' }}>
+                      <Text style={{ color: datePreset === p.id ? 'white' : '#111827', fontWeight: '700' }}>{p.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {/* Tags */}
+                <Text style={{ color: '#6B7280', fontWeight: '700', marginBottom: 8 }}>Tags</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                  {availableTags.length === 0 && (
+                    <Text style={{ color: '#9CA3AF' }}>No tags yet</Text>
+                  )}
+                  {availableTags.map((t) => {
+                    const active = selectedTags.includes(t)
+                    return (
+                      <TouchableOpacity key={t} onPress={() => setSelectedTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]))} style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999, backgroundColor: active ? '#10B981' : '#F3F4F6' }}>
+                        <Text style={{ color: active ? 'white' : '#111827', fontWeight: '700' }}>#{t}</Text>
+                      </TouchableOpacity>
+                    )
+                  })}
+                </View>
+
+                {/* Sort */}
+                <Text style={{ color: '#6B7280', fontWeight: '700', marginBottom: 8 }}>Sort by</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                  {([
+                    { id: 'newest', label: 'Newest' },
+                    { id: 'oldest', label: 'Oldest' },
+                    { id: 'title', label: 'Title' },
+                    { id: 'category', label: 'Category' },
+                  ] as const).map((s) => (
+                    <TouchableOpacity key={s.id} onPress={() => setSortBy(s.id)} style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999, backgroundColor: sortBy === s.id ? '#EF4444' : '#F3F4F6' }}>
+                      <Text style={{ color: sortBy === s.id ? 'white' : '#111827', fontWeight: '700' }}>{s.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
+                  <TouchableOpacity onPress={() => { setDatePreset('all'); setSelectedTags([]); setSortBy('newest'); }} style={{ flex: 1, backgroundColor: '#F3F4F6', borderRadius: 12, paddingVertical: 12, alignItems: 'center' }}>
+                    <Text style={{ color: '#111827', fontWeight: '700' }}>Clear</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setShowFilters(false)} style={{ flex: 1, backgroundColor: '#6366F1', borderRadius: 12, paddingVertical: 12, alignItems: 'center' }}>
+                    <Text style={{ color: 'white', fontWeight: '700' }}>Apply</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
         </SafeAreaView>
       </LinearGradient>
     </>

@@ -114,7 +114,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           data: {
             full_name: fullName.trim(),
           },
-          emailRedirectTo: "intelliprep20://email-confirmation",
+          emailRedirectTo: "intelliprep://email-confirmation",
         },
       })
       if (data.session) {
@@ -158,7 +158,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-        redirectTo: "intelliprep20://reset-password",
+        redirectTo: "intelliprep://reset-password",
       })
       if (error) throw error
     } catch (error: any) {

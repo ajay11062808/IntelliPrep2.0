@@ -122,7 +122,7 @@ export default function EmailConfirmationScreen() {
           type: 'signup',
           email: user.email,
           options: {
-            emailRedirectTo: "intelliprep20://email-confirmation",
+            emailRedirectTo: "intelliprep://email-confirmation",
           },
         })
         

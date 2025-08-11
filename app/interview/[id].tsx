@@ -4,15 +4,14 @@ import { Ionicons } from "@expo/vector-icons"
 import { router, useLocalSearchParams } from "expo-router"
 import { useEffect, useState } from "react"
 import {
-    ActivityIndicator,
-    Alert,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Modal,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native"
 // Mic features temporarily disabled
 import { useAuth } from "../../constants/AuthContext"
@@ -200,16 +199,16 @@ export default function InterviewDetailScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2196F3" />
+      <View className="flex-1 items-center justify-center bg-white dark:bg-gray-900">
+        <ActivityIndicator size="large" color="#6366F1" />
       </View>
     )
   }
 
   if (!interview) {
     return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>Interview not found</Text>
+      <View className="flex-1 items-center justify-center bg-white dark:bg-gray-900">
+        <Text className="text-base text-gray-600 dark:text-gray-300">Interview not found</Text>
       </View>
     )
   }
@@ -218,119 +217,122 @@ export default function InterviewDetailScreen() {
   const isCompleted = interview.status === "completed"
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <View className="flex-1 bg-gray-50 dark:bg-gray-900">
+      <View className="flex-row items-center justify-between px-4 py-3 pt-12 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
+          <Ionicons name="arrow-back" size={24} color="#9CA3AF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{interview.title}</Text>
-        {isCompleted && (
+        <Text className="flex-1 text-center text-lg font-semibold text-gray-800 dark:text-gray-100" numberOfLines={1}>
+          {interview.title}
+        </Text>
+        {isCompleted ? (
           <TouchableOpacity onPress={() => setShowSaveTranscriptModal(true)}>
-            <Ionicons name="save" size={24} color="#2196F3" />
+            <Ionicons name="save" size={24} color="#6366F1" />
           </TouchableOpacity>
+        ) : (
+          <View style={{ width: 24 }} />
         )}
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView className="flex-1 px-4 py-4">
         {!interviewStarted ? (
-          <View style={styles.startContainer}>
-            <Ionicons name="mic" size={80} color="#2196F3" />
-            <Text style={styles.startTitle}>Ready to Start?</Text>
-            <Text style={styles.startSubtitle}>
+          <View className="flex-1 items-center justify-center px-8">
+            <Ionicons name="mic" size={80} color="#6366F1" />
+            <Text className="mt-5 mb-2 text-2xl font-bold text-gray-800 dark:text-gray-100">Ready to Start?</Text>
+            <Text className="text-center text-base text-gray-600 dark:text-gray-300 mb-10 leading-6">
               This interview contains {interview.questions.length} questions. Take your time and answer thoughtfully.
             </Text>
-            <TouchableOpacity style={styles.startButton} onPress={startInterview}>
-              <Text style={styles.startButtonText}>Start Interview</Text>
+            <TouchableOpacity className="bg-indigo-600 rounded-xl px-8 py-4" onPress={startInterview}>
+              <Text className="text-white text-lg font-semibold">Start Interview</Text>
             </TouchableOpacity>
           </View>
         ) : isCompleted ? (
-          <View style={styles.completedContainer}>
-            <Ionicons name="checkmark-circle" size={80} color="#4CAF50" />
-            <Text style={styles.completedTitle}>Interview Complete!</Text>
-            <Text style={styles.scoreText}>Your Score: {interview.score}/10</Text>
+          <View className="items-center px-5">
+            <Ionicons name="checkmark-circle" size={80} color="#22C55E" />
+            <Text className="mt-5 mb-4 text-2xl font-bold text-gray-800 dark:text-gray-100">Interview Complete!</Text>
+            <Text className="text-xl font-semibold text-green-600 dark:text-green-400 mb-5">
+              Your Score: {interview.score}/10
+            </Text>
 
             {interview.feedback && (
-              <View style={styles.feedbackContainer}>
-                <Text style={styles.feedbackTitle}>Overall Feedback:</Text>
-                <Text style={styles.feedbackText}>{interview.feedback}</Text>
+              <View className="self-stretch bg-white dark:bg-gray-800 rounded-xl p-4 mb-5">
+                <Text className="text-base font-semibold text-gray-800 dark:text-gray-100 mb-2">Overall Feedback:</Text>
+                <Text className="text-sm text-gray-600 dark:text-gray-300">{interview.feedback}</Text>
               </View>
             )}
 
-            <TouchableOpacity style={styles.saveTranscriptButton} onPress={() => setShowSaveTranscriptModal(true)}>
+            <TouchableOpacity className="flex-row items-center gap-2 bg-indigo-600 rounded-xl px-5 py-3 mb-5" onPress={() => setShowSaveTranscriptModal(true)}>
               <Ionicons name="document-text" size={20} color="white" />
-              <Text style={styles.saveTranscriptButtonText}>Save Transcript to Notes</Text>
+              <Text className="text-white text-base font-semibold">Save Transcript to Notes</Text>
             </TouchableOpacity>
 
-            <View style={styles.responsesContainer}>
-              <Text style={styles.responsesTitle}>Your Responses:</Text>
+            <View className="self-stretch">
+              <Text className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">Your Responses:</Text>
               {responses.map((response, index) => (
-                <View key={index} style={styles.responseItem}>
-                  <Text style={styles.responseQuestion}>
+                <View key={index} className="bg-white dark:bg-gray-800 rounded-xl p-4 mb-3">
+                  <Text className="text-base font-semibold text-gray-800 dark:text-gray-100 mb-2">
                     Q{index + 1}: {response.question_text}
                   </Text>
-                  <Text style={styles.responseAnswer}>{response.answer}</Text>
-                  <View style={styles.responseFooter}>
-                    <Text
-                      style={[
-                        styles.responseScore,
-                        { color: response.score && response.score >= 7 ? "#4CAF50" : "#FF9800" },
-                      ]}
-                    >
+                  <Text className="text-sm text-gray-700 dark:text-gray-300 mb-2 leading-5">{response.answer}</Text>
+                  <View className="flex-row items-center justify-between mb-2">
+                    <Text style={{ color: response.score && response.score >= 7 ? "#22C55E" : "#F59E0B" }} className="text-sm font-semibold">
                       Score: {response.score}/10
                     </Text>
-                    <Text style={styles.responseDuration}>{response.duration}s</Text>
+                    <Text className="text-xs text-gray-500">{response.duration}s</Text>
                   </View>
-                  {response.feedback && <Text style={styles.responseFeedback}>{response.feedback}</Text>}
+                  {response.feedback && (
+                    <Text className="text-xs italic text-gray-600 dark:text-gray-300">{response.feedback}</Text>
+                  )}
                 </View>
               ))}
             </View>
           </View>
         ) : (
-          <View style={styles.questionContainer}>
-            <View style={styles.progressContainer}>
-              <Text style={styles.progressText}>
+          <View className="flex-1">
+            <View className="mb-5">
+              <Text className="text-center text-base text-gray-600 dark:text-gray-300 mb-2">
                 Question {currentQuestionIndex + 1} of {interview.questions.length}
               </Text>
-              <View style={styles.progressBar}>
+              <View className="h-1 rounded bg-gray-200 dark:bg-gray-700">
                 <View
-                  style={[
-                    styles.progressFill,
-                    { width: `${((currentQuestionIndex + 1) / interview.questions.length) * 100}%` },
-                  ]}
+                  className="h-full rounded bg-indigo-600"
+                  style={{ width: `${((currentQuestionIndex + 1) / interview.questions.length) * 100}%` }}
                 />
               </View>
             </View>
 
-            <View style={styles.questionCard}>
-              <Text style={styles.questionText}>{currentQuestion.text}</Text>
-              <View style={styles.questionMeta}>
-                <Text style={styles.questionCategory}>{currentQuestion.category}</Text>
-                <Text style={[styles.questionDifficulty, { color: getDifficultyColor(currentQuestion.difficulty) }]}>
+            <View className="bg-white dark:bg-gray-800 rounded-xl p-5 mb-5">
+              <Text className="text-lg text-gray-800 dark:text-gray-100 leading-7 mb-3">{currentQuestion.text}</Text>
+              <View className="flex-row items-center justify-between">
+                <Text className="text-sm text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/40 px-2 py-0.5 rounded-full">
+                  {currentQuestion.category}
+                </Text>
+                <Text style={{ color: getDifficultyColor(currentQuestion.difficulty) }} className="text-sm font-semibold capitalize">
                   {currentQuestion.difficulty}
                 </Text>
               </View>
             </View>
 
-            <View style={styles.answerContainer}>
-              <Text style={styles.answerLabel}>Your Answer:</Text>
+            <View className="mb-5">
+              <Text className="text-base font-semibold text-gray-800 dark:text-gray-100 mb-2">Your Answer:</Text>
               <TextInput
-                style={styles.answerInput}
+                className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-base text-gray-800 dark:text-gray-100 min-h-[120px]"
                 value={currentAnswer}
                 onChangeText={setCurrentAnswer}
                 placeholder="Type your answer here..."
+                placeholderTextColor="#9CA3AF"
                 multiline
                 numberOfLines={6}
                 textAlignVertical="top"
               />
-              {/* Mic features temporarily disabled */}
             </View>
 
             <TouchableOpacity
-              style={[styles.submitButton, !currentAnswer.trim() && styles.submitButtonDisabled]}
+              className={`rounded-xl items-center py-4 ${currentAnswer.trim() ? 'bg-green-600' : 'bg-green-600 opacity-50'}`}
               onPress={submitAnswer}
               disabled={!currentAnswer.trim()}
             >
-              <Text style={styles.submitButtonText}>
+              <Text className="text-white text-base font-semibold">
                 {currentQuestionIndex < interview.questions.length - 1 ? "Next Question" : "Complete Interview"}
               </Text>
             </TouchableOpacity>
@@ -340,34 +342,35 @@ export default function InterviewDetailScreen() {
 
       {/* Save Transcript Modal */}
       <Modal visible={showSaveTranscriptModal} animationType="slide" presentationStyle="pageSheet">
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Save Transcript</Text>
+        <View className="flex-1 bg-white dark:bg-gray-900">
+          <View className="flex-row items-center justify-between px-5 py-4 pt-12 border-b border-gray-200 dark:border-gray-800">
+            <Text className="text-xl font-semibold text-gray-800 dark:text-gray-100">Save Transcript</Text>
             <TouchableOpacity onPress={() => setShowSaveTranscriptModal(false)}>
-              <Ionicons name="close" size={24} color="#333" />
+              <Ionicons name="close" size={24} color="#9CA3AF" />
             </TouchableOpacity>
           </View>
 
-          <View style={styles.saveForm}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Note Title</Text>
+          <View className="flex-1 p-5">
+            <View className="mb-5">
+              <Text className="text-base font-semibold text-gray-800 dark:text-gray-100 mb-2">Note Title</Text>
               <TextInput
-                style={styles.input}
+                className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-base text-gray-800 dark:text-gray-100"
                 value={transcriptTitle}
                 onChangeText={setTranscriptTitle}
                 placeholder="Enter title for the transcript"
+                placeholderTextColor="#9CA3AF"
               />
             </View>
 
-            <View style={styles.transcriptPreview}>
-              <Text style={styles.transcriptPreviewLabel}>Transcript Preview:</Text>
-              <ScrollView style={styles.transcriptPreviewContent}>
-                <Text style={styles.transcriptPreviewText}>{generateTranscript()}</Text>
+            <View className="flex-1 mb-5">
+              <Text className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-2">Transcript Preview:</Text>
+              <ScrollView className="max-h-52 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3">
+                <Text className="text-xs leading-4 text-gray-700 dark:text-gray-300">{generateTranscript()}</Text>
               </ScrollView>
             </View>
 
-            <TouchableOpacity style={styles.saveButton} onPress={saveTranscriptToNotes}>
-              <Text style={styles.saveButtonText}>Save to Notes</Text>
+            <TouchableOpacity className="bg-indigo-600 rounded-xl items-center py-4" onPress={saveTranscriptToNotes}>
+              <Text className="text-white text-base font-semibold">Save to Notes</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -389,331 +392,4 @@ const getDifficultyColor = (difficulty: string) => {
   }
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f5f5f5",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  errorText: {
-    fontSize: 18,
-    color: "#666",
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    paddingTop: 50,
-    backgroundColor: "white",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#333",
-    flex: 1,
-    textAlign: "center",
-  },
-  content: {
-    flex: 1,
-    padding: 16,
-  },
-  startContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 40,
-  },
-  startTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#333",
-    marginTop: 20,
-    marginBottom: 8,
-  },
-  startSubtitle: {
-    fontSize: 16,
-    color: "#666",
-    textAlign: "center",
-    marginBottom: 40,
-    lineHeight: 22,
-  },
-  startButton: {
-    backgroundColor: "#2196F3",
-    paddingHorizontal: 32,
-    paddingVertical: 16,
-    borderRadius: 8,
-  },
-  startButtonText: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "600",
-  },
-  completedContainer: {
-    alignItems: "center",
-    paddingHorizontal: 20,
-  },
-  completedTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#333",
-    marginTop: 20,
-    marginBottom: 16,
-  },
-  scoreText: {
-    fontSize: 24,
-    fontWeight: "600",
-    color: "#4CAF50",
-    marginBottom: 20,
-  },
-  feedbackContainer: {
-    backgroundColor: "white",
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 20,
-    alignSelf: "stretch",
-  },
-  feedbackTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 8,
-  },
-  feedbackText: {
-    fontSize: 14,
-    color: "#666",
-    lineHeight: 20,
-  },
-  saveTranscriptButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#2196F3",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginBottom: 20,
-    gap: 8,
-  },
-  saveTranscriptButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  responsesContainer: {
-    alignSelf: "stretch",
-  },
-  responsesTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 16,
-  },
-  responseItem: {
-    backgroundColor: "white",
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 12,
-  },
-  responseQuestion: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 8,
-  },
-  responseAnswer: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 8,
-    lineHeight: 20,
-  },
-  responseFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  responseScore: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  responseDuration: {
-    fontSize: 12,
-    color: "#999",
-  },
-  responseFeedback: {
-    fontSize: 12,
-    color: "#666",
-    fontStyle: "italic",
-  },
-  questionContainer: {
-    flex: 1,
-  },
-  progressContainer: {
-    marginBottom: 20,
-  },
-  progressText: {
-    fontSize: 16,
-    color: "#666",
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  progressBar: {
-    height: 4,
-    backgroundColor: "#e0e0e0",
-    borderRadius: 2,
-  },
-  progressFill: {
-    height: "100%",
-    backgroundColor: "#2196F3",
-    borderRadius: 2,
-  },
-  questionCard: {
-    backgroundColor: "white",
-    padding: 20,
-    borderRadius: 8,
-    marginBottom: 20,
-  },
-  questionText: {
-    fontSize: 18,
-    color: "#333",
-    lineHeight: 26,
-    marginBottom: 12,
-  },
-  questionMeta: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  questionCategory: {
-    fontSize: 14,
-    color: "#2196F3",
-    backgroundColor: "#e3f2fd",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-  },
-  questionDifficulty: {
-    fontSize: 14,
-    fontWeight: "600",
-    textTransform: "capitalize",
-  },
-  answerContainer: {
-    marginBottom: 20,
-  },
-  answerLabel: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 8,
-  },
-  answerInput: {
-    backgroundColor: "white",
-    padding: 16,
-    borderRadius: 8,
-    fontSize: 16,
-    minHeight: 120,
-    borderWidth: 1,
-    borderColor: "#ddd",
-  },
-  submitButton: {
-    backgroundColor: "#4CAF50",
-    paddingVertical: 16,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  submitButtonDisabled: {
-    opacity: 0.5,
-  },
-  submitButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: "white",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    paddingTop: 50,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#333",
-  },
-  saveForm: {
-    flex: 1,
-    padding: 20,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  inputLabel: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: "#f9f9f9",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: "#ddd",
-  },
-  transcriptPreview: {
-    flex: 1,
-    marginBottom: 20,
-  },
-  transcriptPreviewLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#666",
-    marginBottom: 8,
-  },
-  transcriptPreviewContent: {
-    backgroundColor: "#f9f9f9",
-    padding: 12,
-    borderRadius: 8,
-    maxHeight: 200,
-    borderWidth: 1,
-    borderColor: "#ddd",
-  },
-  transcriptPreviewText: {
-    fontSize: 12,
-    color: "#666",
-    lineHeight: 16,
-  },
-  saveButton: {
-    backgroundColor: "#2196F3",
-    paddingVertical: 16,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  saveButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-})
+// Converted to NativeWind classes; removed StyleSheet styles

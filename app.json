@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "IntelliPrep2.0",
-    "slug": "intelliprep20",
+    "name": "IntelliPrep",
+    "slug": "intelliprep",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "intelliprep20",
+    "icon": "./assets/images/logo.png",
+    "scheme": "intelliprep",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -16,12 +16,12 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/logo.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
       "softwareKeyboardLayoutMode": "resize",
-      "package": "com.ajay1106.intelliprep20",
+      "package": "com.ajay1106.intelliprep",
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS"
@@ -37,7 +37,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/splash-logo.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
@@ -64,7 +64,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "b6b9fe34-d4f2-4097-bd35-ae2e06547e02"
+        "projectId": "f2fc1d27-ba5e-4e6b-95a9-4c72e03c0b2a"
       }
     },
     "owner": "ajay1106"

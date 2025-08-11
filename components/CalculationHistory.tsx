@@ -187,6 +187,7 @@ export default function CalculationHistory({ visible, onClose, refreshToken }: C
             <View>
               <Text className="text-white text-2xl font-bold">Calculation History</Text>
               <Text className="text-white/70 text-base mt-1">{filteredCalculations.length} calculations</Text>
+              <Text className="text-white/70 text-xs mt-1">Showing your last 25 calculations</Text>
             </View>
             <TouchableOpacity onPress={onClose}>
               <Ionicons name="close" size={28} color="white" />

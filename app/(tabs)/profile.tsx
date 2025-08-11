@@ -1,21 +1,22 @@
 "use client"
 
+import { ExternalLink } from "@/components/ExternalLink"
 import { Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import * as SecureStore from "expo-secure-store"
 import { useEffect, useState } from "react"
 import {
-    ActivityIndicator,
-    Alert,
-    Linking,
-    Modal,
-    Platform,
-    ScrollView,
-    Share,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Modal,
+  Platform,
+  ScrollView,
+  Share,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import SupportUsRewarded from "../../components/SupportUsRewarded"
@@ -350,21 +351,8 @@ export default function SettingsScreen() {
           <View className="mt-5 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 rounded-xl p-4">
             <Text className="font-semibold text-indigo-800 dark:text-indigo-200 mb-1">Where to get a Gemini API key</Text>
             <Text className="text-indigo-700 dark:text-indigo-300 mb-3">Create a key in Google AI Studio and paste it here to use your own quota.</Text>
-            <TouchableOpacity
-              className="bg-indigo-600 rounded-lg py-2"
-              onPress={() => {
-                Alert.alert(
-                  "Get Gemini Key",
-                  "Open Google AI Studio at https://aistudio.google.com/app/apikey to create a key.",
-                  [
-                    { text: "Copy URL", onPress: () => {} },
-                    { text: "OK" },
-                  ]
-                )
-              }}
-            >
-              <Text className="text-white text-center font-semibold">Open Google AI Studio</Text>
-            </TouchableOpacity>
+            <ExternalLink className="bg-indigo-600 rounded-lg text-white text-center font-semibold py-2" href="https://aistudio.google.com/app/apikey" target="_blank">Open Google AI Studio</ExternalLink>
+            
             <Text className="text-xs text-indigo-700 dark:text-indigo-300 mt-2">Docs: https://ai.google.dev/gemini-api/docs/api-key</Text>
           </View>
           {profile?.is_premium ? (

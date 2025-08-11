@@ -9,6 +9,7 @@ import {
     ActivityIndicator,
     Alert,
     Animated,
+    Keyboard,
     KeyboardAvoidingView,
     Platform,
     ScrollView,
@@ -28,7 +29,22 @@ export default function RegisterScreen() {
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [keyboardHeight, setKeyboardHeight] = useState(0)
   const { signUp, error, clearError, loading } = useAuth()
+  const scrollRef = useRef<ScrollView | null>(null)
+  const fullNameRef = useRef<TextInput | null>(null)
+  const emailRef = useRef<TextInput | null>(null)
+  const passwordRef = useRef<TextInput | null>(null)
+  const confirmRef = useRef<TextInput | null>(null)
+
+  const scrollToInput = (ref: React.RefObject<TextInput | null>) => {
+    requestAnimationFrame(() => {
+      ref.current?.measure?.((x, y, width, height, pageX, pageY) => {
+        const targetY = Math.max(0, (pageY ?? 0) - 120)
+        scrollRef.current?.scrollTo({ y: targetY, animated: true })
+      })
+    })
+  }
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current
@@ -119,6 +135,16 @@ export default function RegisterScreen() {
     }
   }, [error])
 
+  // keyboard padding and auto-scroll
+  useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKeyboardHeight(e.endCoordinates?.height ?? 0)
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 0)
+    })
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0))
+    return () => { showSub.remove(); hideSub.remove() }
+  }, [])
+
   return (
     <LinearGradient colors={["#667eea", "#764ba2", "#f093fb"]} style={{ flex: 1 }}>
       <SafeAreaView className="flex-1">
@@ -128,9 +154,19 @@ export default function RegisterScreen() {
           keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
         >
           <ScrollView
+            style={{ flex: 1 }}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ flexGrow: 1, paddingVertical: 24, paddingHorizontal: 32 }}
+            automaticallyAdjustKeyboardInsets
+            keyboardDismissMode="none"
+            contentContainerStyle={{ flexGrow: 1, paddingVertical: 24, paddingHorizontal: 32, paddingBottom: 24 + keyboardHeight }}
             keyboardShouldPersistTaps="always"
+            scrollEnabled
+            nestedScrollEnabled
+            ref={scrollRef}
+            contentInsetAdjustmentBehavior="always"
+            overScrollMode="always"
+            contentInset={{ bottom: keyboardHeight }}
+            scrollIndicatorInsets={{ bottom: keyboardHeight }}
           >
             {/* Header */}
             <Animated.View
@@ -164,6 +200,7 @@ export default function RegisterScreen() {
                     <View className="flex-row items-center bg-white/50 dark:bg-gray-800 rounded-2xl px-4 py-3 border border-white/30">
                       <Ionicons name="person" size={20} color="#667eea" />
                       <TextInput
+                        ref={fullNameRef}
                         className="flex-1 ml-3 text-gray-800 dark:text-gray-100 text-base"
                         placeholder="Full name"
                         placeholderTextColor="#9CA3AF"
@@ -175,6 +212,9 @@ export default function RegisterScreen() {
                         autoCapitalize="words"
                         editable={!isLoading && !loading}
                         returnKeyType="next"
+                        blurOnSubmit={false}
+                        onSubmitEditing={() => emailRef.current?.focus()}
+                        onFocus={() => scrollToInput(fullNameRef)}
                       />
                     </View>
                   </View>
@@ -184,6 +224,7 @@ export default function RegisterScreen() {
                     <View className="flex-row items-center bg-white/50 dark:bg-gray-800 rounded-2xl px-4 py-3 border border-white/30">
                       <Ionicons name="mail" size={20} color="#667eea" />
                       <TextInput
+                        ref={emailRef}
                         className="flex-1 ml-3 text-gray-800 dark:text-gray-100 text-base"
                         placeholder="Email address"
                         placeholderTextColor="#9CA3AF"
@@ -196,6 +237,9 @@ export default function RegisterScreen() {
                         }}
                         editable={!isLoading && !loading}
                         returnKeyType="next"
+                        blurOnSubmit={false}
+                        onSubmitEditing={() => passwordRef.current?.focus()}
+                        onFocus={() => scrollToInput(emailRef)}
                       />
                     </View>
                   </View>
@@ -205,6 +249,7 @@ export default function RegisterScreen() {
                     <View className="flex-row items-center bg-white/50 dark:bg-gray-800 rounded-2xl px-4 py-3 border border-white/30">
                       <Ionicons name="lock-closed" size={20} color="#667eea" />
                       <TextInput
+                        ref={passwordRef}
                         className="flex-1 ml-3 text-gray-800 dark:text-gray-100 text-base"
                         placeholder="Password"
                         placeholderTextColor="#9CA3AF"
@@ -216,6 +261,9 @@ export default function RegisterScreen() {
                         }}
                         editable={!isLoading && !loading}
                         returnKeyType="next"
+                        blurOnSubmit={false}
+                        onSubmitEditing={() => confirmRef.current?.focus()}
+                        onFocus={() => scrollToInput(passwordRef)}
                       />
                       <TouchableOpacity
                         onPress={() => setShowPassword(!showPassword)}
@@ -235,6 +283,7 @@ export default function RegisterScreen() {
                     <View className="flex-row items-center bg-white/50 dark:bg-gray-800 rounded-2xl px-4 py-3 border border-white/30">
                       <Ionicons name="lock-closed" size={20} color="#667eea" />
                       <TextInput
+                        ref={confirmRef}
                         className="flex-1 ml-3 text-gray-800 dark:text-gray-100 text-base"
                         placeholder="Confirm password"
                         placeholderTextColor="#9CA3AF"
@@ -246,7 +295,9 @@ export default function RegisterScreen() {
                         }}
                         editable={!isLoading && !loading}
                         returnKeyType="done"
+                        blurOnSubmit={false}
                         onSubmitEditing={handleRegister}
+                        onFocus={() => scrollToInput(confirmRef)}
                       />
                       <TouchableOpacity
                         onPress={() => setShowConfirmPassword(!showConfirmPassword)}

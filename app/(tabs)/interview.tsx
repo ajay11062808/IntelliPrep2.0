@@ -33,6 +33,8 @@ export default function InterviewScreen() {
   const pdfResolveRef = useRef<((text: string) => void) | null>(null)
   const pdfTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const extractionTokenRef = useRef<string | null>(null)
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false)
+  const [showDifficultyPicker, setShowDifficultyPicker] = useState(false)
 
   const { user } = useAuth()
   const contextInputRef = useRef<TextInput | null>(null)
@@ -371,6 +373,7 @@ export default function InterviewScreen() {
                 value={newInterviewTitle}
                 onChangeText={setNewInterviewTitle}
                 placeholder="Enter interview title"
+                placeholderTextColor="#9CA3AF"
               />
             </View>
 
@@ -385,6 +388,7 @@ export default function InterviewScreen() {
                 value={resumeContext}
                 onChangeText={(t) => { setResumeContext(t); if (autoFilledFromPdf) setAutoFilledFromPdf(false) }}
                 placeholder="Paste resume or role description..."
+                placeholderTextColor="#9CA3AF"
                 multiline
                 numberOfLines={5}
                 textAlignVertical="top"
@@ -487,56 +491,38 @@ export default function InterviewScreen() {
 
             <View className="mb-6">
               <Text className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">Category</Text>
-              <View className="flex-row flex-wrap gap-2">
-                {categories.map((category) => (
-                  <TouchableOpacity
-                    key={category.id}
-                    className={`flex-row items-center px-3 py-2 rounded-lg border ${
-                      selectedCategory === category.id
-                        ? "bg-primary-500 border-primary-500"
-                        : "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700"
-                    }`}
-                    onPress={() => setSelectedCategory(category.id)}
-                  >
-                    <Ionicons
-                      name={category.icon as any}
-                      size={16}
-                      color={selectedCategory === category.id ? "white" : "#9CA3AF"}
-                    />
-                    <Text
-                      className={`ml-2 text-sm font-medium ${
-                        selectedCategory === category.id ? "text-white" : "text-gray-600 dark:text-gray-300"
-                      }`}
-                    >
-                      {category.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <TouchableOpacity
+                className="flex-row items-center justify-between bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700"
+                onPress={() => setShowCategoryPicker(true)}
+              >
+                <View className="flex-row items-center">
+                  <Ionicons
+                    name={(categories.find((c) => c.id === selectedCategory)?.icon as any) || ("list" as any)}
+                    size={18}
+                    color="#9CA3AF"
+                  />
+                  <Text className="ml-2 text-gray-800 dark:text-gray-100 font-medium">
+                    {categories.find((c) => c.id === selectedCategory)?.name || "Select category"}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-down" size={18} color="#9CA3AF" />
+              </TouchableOpacity>
             </View>
 
             <View className="mb-6">
               <Text className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">Difficulty</Text>
-              <View className="flex-row gap-3">
-                {difficulties.map((difficulty) => (
-                  <TouchableOpacity
-                    key={difficulty.id}
-                    className={`flex-1 py-3 rounded-lg border ${
-                      selectedDifficulty === difficulty.id ? "border-transparent" : "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800"
-                    }`}
-                    style={selectedDifficulty === difficulty.id ? { backgroundColor: difficulty.color } : {}}
-                    onPress={() => setSelectedDifficulty(difficulty.id)}
-                  >
-                    <Text
-                      className={`text-center font-semibold ${
-                        selectedDifficulty === difficulty.id ? "text-white" : "text-gray-600 dark:text-gray-300"
-                      }`}
-                    >
-                      {difficulty.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <TouchableOpacity
+                className="flex-row items-center justify-between bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700"
+                onPress={() => setShowDifficultyPicker(true)}
+              >
+                <View className="flex-row items-center">
+                  <View className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: difficulties.find((d) => d.id === selectedDifficulty)?.color || '#9CA3AF' }} />
+                  <Text className="ml-2 text-gray-800 dark:text-gray-100 font-medium">
+                    {difficulties.find((d) => d.id === selectedDifficulty)?.name || "Select difficulty"}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-down" size={18} color="#9CA3AF" />
+              </TouchableOpacity>
             </View>
 
             <View className="mb-8">
@@ -571,6 +557,71 @@ export default function InterviewScreen() {
                 {creating ? "Creating..." : extracting ? "Extracting PDF..." : "Create Interview"}
               </Text>
             </TouchableOpacity>
+            {/* Category Picker Modal */}
+            <Modal
+              visible={showCategoryPicker}
+              transparent
+              animationType="fade"
+              onRequestClose={() => setShowCategoryPicker(false)}
+            >
+              <View className="flex-1 bg-black/50 justify-end">
+                <View className="bg-white dark:bg-gray-900 rounded-t-2xl p-4">
+                  <View className="flex-row justify-between items-center mb-2">
+                    <Text className="text-lg font-semibold text-gray-800 dark:text-gray-100">Select Category</Text>
+                    <TouchableOpacity onPress={() => setShowCategoryPicker(false)}>
+                      <Ionicons name="close" size={22} color="#9CA3AF" />
+                    </TouchableOpacity>
+                  </View>
+                  {categories.map((cat) => (
+                    <TouchableOpacity
+                      key={cat.id}
+                      className="flex-row items-center px-2 py-3 border-b border-gray-100 dark:border-gray-800"
+                      onPress={() => {
+                        setSelectedCategory(cat.id)
+                        setShowCategoryPicker(false)
+                      }}
+                    >
+                      <Ionicons name={cat.icon as any} size={18} color="#9CA3AF" />
+                      <Text className="ml-2 flex-1 text-gray-800 dark:text-gray-100">{cat.name}</Text>
+                      {selectedCategory === cat.id && <Ionicons name="checkmark" size={18} color="#10B981" />}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </Modal>
+
+            {/* Difficulty Picker Modal */}
+            <Modal
+              visible={showDifficultyPicker}
+              transparent
+              animationType="fade"
+              onRequestClose={() => setShowDifficultyPicker(false)}
+            >
+              <View className="flex-1 bg-black/50 justify-end">
+                <View className="bg-white dark:bg-gray-900 rounded-t-2xl p-4">
+                  <View className="flex-row justify-between items-center mb-2">
+                    <Text className="text-lg font-semibold text-gray-800 dark:text-gray-100">Select Difficulty</Text>
+                    <TouchableOpacity onPress={() => setShowDifficultyPicker(false)}>
+                      <Ionicons name="close" size={22} color="#9CA3AF" />
+                    </TouchableOpacity>
+                  </View>
+                  {difficulties.map((diff) => (
+                    <TouchableOpacity
+                      key={diff.id}
+                      className="flex-row items-center px-2 py-3 border-b border-gray-100 dark:border-gray-800"
+                      onPress={() => {
+                        setSelectedDifficulty(diff.id)
+                        setShowDifficultyPicker(false)
+                      }}
+                    >
+                      <View className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: diff.color }} />
+                      <Text className="ml-2 flex-1 text-gray-800 dark:text-gray-100">{diff.name}</Text>
+                      {selectedDifficulty === diff.id && <Ionicons name="checkmark" size={18} color="#10B981" />}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </Modal>
           </ScrollView>
         </SafeAreaView>
       </Modal>
