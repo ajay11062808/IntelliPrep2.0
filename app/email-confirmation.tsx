@@ -162,7 +162,7 @@ export default function EmailConfirmationScreen() {
                   Email Confirmed!
                 </Text>
                 <Text className="text-gray-600 dark:text-gray-400 text-center mb-8 leading-6">
-                  Your email has been successfully confirmed. You're now ready to use IntelliPrep!
+                  Your email has been successfully confirmed. You&apos;re now ready to use IntelliPrep!
                 </Text>
                 <ActivityIndicator size="small" color="#667eea" />
                 <Text className="text-gray-500 text-sm mt-2">Redirecting to app...</Text>

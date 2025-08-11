@@ -20,7 +20,7 @@ export default function RealtimeTranscriber({ onPartialText, onFinalText }: Prop
   useEffect(() => {
     try {
       // Use eval('require') to prevent Metro from statically resolving the module when it's not installed
-      // eslint-disable-next-line no-eval
+       
       const maybe = eval('require')("@react-native-voice/voice")
       const Voice = maybe?.default ?? maybe
       if (Voice) {

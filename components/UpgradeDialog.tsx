@@ -17,7 +17,7 @@ export const UpgradeDialog: React.FC<Props> = ({ visible, onClose, onGoPremium, 
       <View className="flex-1 bg-black/50 justify-center items-center px-6">
         <LinearGradient colors={["#667eea", "#764ba2"]} style={{ borderRadius: 20, overflow: "hidden", width: "100%" }}>
           <View className="bg-white/95 p-6 rounded-2xl">
-            <Text className="text-xl font-bold text-gray-800 mb-2">You've reached your daily limit</Text>
+            <Text className="text-xl font-bold text-gray-800 mb-2">You&apos;ve reached your daily limit</Text>
             <Text className="text-gray-600 mb-6">Upgrade to premium for 100 requests/day or add your own Gemini API key to continue.</Text>
 
             <TouchableOpacity className="bg-indigo-600 rounded-xl py-3 mb-3" onPress={onGoPremium}>

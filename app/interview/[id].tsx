@@ -140,12 +140,12 @@ export default function InterviewDetailScreen() {
             true,
             undefined,
             {
-              interview_id: completedInterview.id,
+              questions: completedInterview.questions,
+              responses: responses,
               duration: completedInterview.duration || totalDuration,
-              questions_count: completedInterview.questions.length,
               score: completedInterview.score,
               feedback: completedInterview.feedback,
-            } as any,
+            },
           )
         }
       } catch {}
@@ -181,13 +181,22 @@ export default function InterviewDetailScreen() {
     try {
       const transcript = generateTranscript()
 
-      await NotesService.createNote(user.id, transcriptTitle.trim(), transcript, "interview", false, true, undefined, {
-        interview_id: interview.id,
-        duration: interview.duration || 0,
-        questions_count: interview.questions.length,
-        score: interview.score,
-        feedback: interview.feedback,
-      })
+      await NotesService.createNote(
+        user.id,
+        transcriptTitle.trim(),
+        transcript,
+        "interview",
+        false,
+        true,
+        undefined,
+        {
+          questions: interview.questions,
+          responses: responses,
+          duration: interview.duration || 0,
+          score: interview.score,
+          feedback: interview.feedback,
+        },
+      )
 
       Alert.alert("Success", "Interview transcript saved to notes!")
       setShowSaveTranscriptModal(false)

@@ -126,7 +126,7 @@ export default function ForgotPasswordScreen() {
                       Check Your Email
                     </Text>
                     <Text className="text-gray-600 dark:text-gray-400 text-center mb-8 leading-6">
-                      We've sent password reset instructions to{" "}
+                      We&apos;ve sent password reset instructions to{" "}
                       <Text className="font-semibold text-blue-600 dark:text-blue-400">{email}</Text>
                     </Text>
 
@@ -196,7 +196,7 @@ export default function ForgotPasswordScreen() {
                 </Text>
 
                 <Text className="text-gray-600 dark:text-gray-400 text-center mb-8 leading-6">
-                  Don't worry! Enter your email address and we'll send you instructions to reset your password.
+                  Don&apos;t worry! Enter your email address and we&apos;ll send you instructions to reset your password.
                 </Text>
 
                 {/* Email Input */}

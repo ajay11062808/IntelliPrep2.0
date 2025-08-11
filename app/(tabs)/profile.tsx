@@ -1,6 +1,6 @@
 "use client"
 
-import { ExternalLink } from "@/components/ExternalLink"
+import { ExternalLink } from "../../components/ExternalLink"
 import { Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import * as SecureStore from "expo-secure-store"
